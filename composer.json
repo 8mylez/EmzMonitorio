@@ -1,0 +1,47 @@
+{
+    "name": "emz/monitorio",
+    "description": "Skeleton plugin",
+    "type": "shopware-platform-plugin",
+    "version": "1.0.0",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "8mylez GmbH",
+            "homepage": "https://8mylez.com"
+        }
+    ],
+    "require": {
+        "shopware/core": ">=6.5.0.0"
+    },
+    "extra": {
+        "shopware-plugin-class": "Emz\\Monitorio\\EmzMonitorio",
+        "plugin-icon": "src/Resources/config/plugin.jpeg",
+        "label": {
+            "de-DE": "Monitorio plugin",
+            "en-GB": "Monitorio plugin"
+        },
+        "copyright": "(c) by 8mylez GmbH",
+        "description": {
+            "de-DE": "Plugin für Monitorio",
+            "en-GB": "Plugin for Monitorio"
+        },
+        "manufacturerLink": {
+            "de-DE": "https://store.shopware.com/8mylez.html",
+            "en-GB": "https://store.shopware.com/en/8mylez.html"
+        },
+        "supportLink": {
+            "de-DE": "https://8mylez.com",
+            "en-GB": "https://8mylez.com"
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Emz\\Monitorio\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Emz\\Monitorio\\Tests\\": "tests/"
+        }
+    }
+}
