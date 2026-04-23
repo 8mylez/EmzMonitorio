@@ -1,9 +1,9 @@
 {
     "name": "emz/monitorio",
-    "description": "Skeleton plugin",
+    "description": "Shopware 6 plugin that forwards selected Monolog log records and custom events to a Monitorio ingest endpoint.",
     "type": "shopware-platform-plugin",
     "version": "1.0.0",
-    "license": "proprietary",
+    "license": "MIT",
     "authors": [
         {
             "name": "8mylez GmbH",
@@ -11,19 +11,31 @@
         }
     ],
     "require": {
-        "shopware/core": ">=6.5.0.0"
+        "php": ">=8.1",
+        "ext-json": "*",
+        "shopware/core": ">=6.5.0.0",
+        "monolog/monolog": "^2.0 || ^3.0",
+        "symfony/config": ">=5.4",
+        "symfony/console": ">=5.4",
+        "symfony/dependency-injection": ">=5.4",
+        "symfony/http-client": ">=5.4",
+        "symfony/http-kernel": ">=5.4",
+        "symfony/messenger": ">=5.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5 || ^10.0"
     },
     "extra": {
         "shopware-plugin-class": "Emz\\Monitorio\\EmzMonitorio",
         "plugin-icon": "src/Resources/config/plugin.jpeg",
         "label": {
-            "de-DE": "Monitorio plugin",
-            "en-GB": "Monitorio plugin"
+            "de-DE": "Monitorio Event Ingest",
+            "en-GB": "Monitorio Event Ingest"
         },
         "copyright": "(c) by 8mylez GmbH",
         "description": {
-            "de-DE": "Plugin für Monitorio",
-            "en-GB": "Plugin for Monitorio"
+            "de-DE": "Leitet Monolog-Logs und benutzerdefinierte Events regelbasiert an Monitorio weiter.",
+            "en-GB": "Forwards Monolog logs and custom events to Monitorio based on configurable rules."
         },
         "manufacturerLink": {
             "de-DE": "https://store.shopware.com/8mylez.html",
