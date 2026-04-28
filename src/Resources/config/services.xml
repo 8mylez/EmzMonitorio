@@ -8,5 +8,19 @@
                 <argument type="service" id="service_container"/>
             </call>
         </service>
+
+        <service id="Emz\Monitorio\Log\LogLineParser"/>
+
+        <service id="Emz\Monitorio\Log\LogReader">
+            <argument>%kernel.logs_dir%</argument>
+            <argument type="service" id="Emz\Monitorio\Log\LogLineParser"/>
+        </service>
+
+        <service id="Emz\Monitorio\Api\LogsApiController" public="true">
+            <argument type="service" id="Emz\Monitorio\Log\LogReader"/>
+            <call method="setContainer">
+                <argument type="service" id="service_container"/>
+            </call>
+        </service>
     </services>
 </container>
