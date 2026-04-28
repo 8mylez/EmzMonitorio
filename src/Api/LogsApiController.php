@@ -9,9 +9,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Annotation\Route;
 
-/**
- * @Route(defaults={"_routeScope"={"api"}})
- */
+#[Route(defaults: ['_routeScope' => ['api']])]
 class LogsApiController extends AbstractController
 {
     private const DEFAULT_MIN_LEVEL = 'WARNING';
@@ -22,13 +20,11 @@ class LogsApiController extends AbstractController
     ) {
     }
 
-    /**
-     * @Route(
-     *     "/api/_action/emz/monitorio/logs",
-     *     name="api.action.emz.monitorio.logs",
-     *     methods={"GET"}
-     * )
-     */
+    #[Route(
+        path: '/api/_action/emz/monitorio/logs',
+        name: 'api.action.emz.monitorio.logs',
+        methods: ['GET']
+    )]
     public function getLogs(Request $request): JsonResponse
     {
         $since = $this->parseSince($request->query->get('since'));

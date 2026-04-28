@@ -6,20 +6,14 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
 
-/**
- * @Route(defaults={"_routeScope"={"api"}})
- */
+#[Route(defaults: ['_routeScope' => ['api']])]
 class MonitorioApiController extends AbstractController
 {
-    /**
-     * @Route(
-     *     "/api/monitorio/free-disk-space",
-     *     name="api.monitorio.free_disk_space",
-     *     methods={"GET"}
-     * )
-     *
-     * @return JsonResponse
-     */
+    #[Route(
+        path: '/api/monitorio/free-disk-space',
+        name: 'api.monitorio.free_disk_space',
+        methods: ['GET']
+    )]
     public function getFreeDiskSpace(): JsonResponse
     {
         $df = disk_free_space("/");
