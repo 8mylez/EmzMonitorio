@@ -2,76 +2,96 @@
 
 namespace Emz\Monitorio\Tests\Api;
 
-use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Schema\AbstractSchemaManager;
 use Emz\Monitorio\Api\MessageQueueApiController;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
+use Symfony\Component\Messenger\Transport\Receiver\ReceiverInterface;
 
 /**
- * Reine Unit-Tests gegen den fixen API-Contract (docs/message_queue_companion_endpoint.md, §3):
+ * Reine Unit-Tests gegen den API-Contract:
  * GET /api/monitorio/message-queue -> 200 mit JSON-Array [{name:string, size:int}].
  *
- * Connection und AbstractSchemaManager sind in DBAL 4.4 nicht final -> per createMock mockbar.
- * Der Controller baut die Antwort per `new JsonResponse` (kein Container/Serializer noetig).
+ * Datenquelle ist wie bei messenger:stats die Menge der messenger.receiver-getaggten
+ * Transports (indexiert nach Alias); gezaehlt wird via MessageCountAwareInterface.
  */
 final class MessageQueueApiControllerTest extends TestCase
 {
-    public function testReturnsEmptyArrayWhenTableIsMissing(): void
+    public function testReturnsCountPerTransport(): void
     {
-        $schemaManager = $this->createMock(AbstractSchemaManager::class);
-        $schemaManager->method('tablesExist')
-            ->with(['messenger_messages'])
-            ->willReturn(false);
+        $receivers = [
+            'failed' => $this->countAwareReceiver(0),
+            'async' => $this->countAwareReceiver(11),
+            'low_priority' => $this->countAwareReceiver(1),
+        ];
 
-        $connection = $this->createMock(Connection::class);
-        $connection->method('createSchemaManager')->willReturn($schemaManager);
-        // Kein Doctrine-Transport -> Query darf gar nicht erst laufen.
-        $connection->expects($this->never())->method('fetchAllAssociative');
-
-        $response = (new MessageQueueApiController($connection))->getMessageQueueBacklog();
-
-        self::assertSame(200, $response->getStatusCode());
-        self::assertSame('[]', $response->getContent());
-    }
-
-    public function testReturnsBacklogPerQueueWithIntegerSizes(): void
-    {
-        $schemaManager = $this->createMock(AbstractSchemaManager::class);
-        $schemaManager->method('tablesExist')->willReturn(true);
-
-        $connection = $this->createMock(Connection::class);
-        $connection->method('createSchemaManager')->willReturn($schemaManager);
-        // DBAL liefert COUNT(*) als String -> muss zu int gecastet werden.
-        $connection->method('fetchAllAssociative')->willReturn([
-            ['name' => 'default', 'size' => '1234'],
-            ['name' => 'low_priority', 'size' => '5'],
-        ]);
-
-        $response = (new MessageQueueApiController($connection))->getMessageQueueBacklog();
+        $response = (new MessageQueueApiController($receivers))->getMessageQueueBacklog();
 
         self::assertSame(200, $response->getStatusCode());
         self::assertSame(
             [
-                ['name' => 'default', 'size' => 1234],
-                ['name' => 'low_priority', 'size' => 5],
+                ['name' => 'failed', 'size' => 0],
+                ['name' => 'async', 'size' => 11],
+                ['name' => 'low_priority', 'size' => 1],
             ],
             json_decode((string) $response->getContent(), true)
         );
     }
 
-    public function testReturnsEmptyArrayWhenNoMessagesWaiting(): void
+    public function testSkipsTransportsWithoutCountSupport(): void
     {
-        $schemaManager = $this->createMock(AbstractSchemaManager::class);
-        $schemaManager->method('tablesExist')->willReturn(true);
+        // z. B. scheduler_shopware: ReceiverInterface ohne MessageCountAwareInterface
+        $receivers = [
+            'async' => $this->countAwareReceiver(3),
+            'scheduler_shopware' => $this->createMock(ReceiverInterface::class),
+        ];
 
-        $connection = $this->createMock(Connection::class);
-        $connection->method('createSchemaManager')->willReturn($schemaManager);
-        $connection->method('fetchAllAssociative')->willReturn([]);
+        $response = (new MessageQueueApiController($receivers))->getMessageQueueBacklog();
 
-        $response = (new MessageQueueApiController($connection))->getMessageQueueBacklog();
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame(
+            [
+                ['name' => 'async', 'size' => 3],
+            ],
+            json_decode((string) $response->getContent(), true)
+        );
+    }
+
+    public function testSkipsTransportsThatFailToCount(): void
+    {
+        $broken = $this->createMock(MessageCountAwareInterface::class);
+        $broken->method('getMessageCount')->willThrowException(new \RuntimeException('transport down'));
+
+        $receivers = [
+            'broken_amqp' => $broken,
+            'async' => $this->countAwareReceiver(2),
+        ];
+
+        $response = (new MessageQueueApiController($receivers))->getMessageQueueBacklog();
+
+        // Ein nicht erreichbarer Transport kostet nur seinen Eintrag, keinen 500.
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame(
+            [
+                ['name' => 'async', 'size' => 2],
+            ],
+            json_decode((string) $response->getContent(), true)
+        );
+    }
+
+    public function testReturnsEmptyArrayWithoutTransports(): void
+    {
+        $response = (new MessageQueueApiController([]))->getMessageQueueBacklog();
 
         self::assertSame(200, $response->getStatusCode());
         // Leeres Result -> JSON-Array [], niemals Objekt {}.
         self::assertSame('[]', $response->getContent());
+    }
+
+    private function countAwareReceiver(int $count): MessageCountAwareInterface
+    {
+        $receiver = $this->createMock(MessageCountAwareInterface::class);
+        $receiver->method('getMessageCount')->willReturn($count);
+
+        return $receiver;
     }
 }

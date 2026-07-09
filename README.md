@@ -58,28 +58,29 @@ Liest Shop-Log-Einträge aus. Optionale Query-Parameter: `since` (ISO-8601-Zeitp
 
 ### GET /api/monitorio/message-queue
 
-**Zweck:** Liefert den exakten Message-Queue-Backlog — die Anzahl noch nicht ausgelieferter Messages pro `queue_name` — direkt aus der Datenbank. Monitorio pollt den Endpunkt pro Shop, speichert die Zeitreihe und alarmiert bei dauerhaft wachsendem Backlog (Frühwarnsignal für einen hängenden oder überlasteten `messenger:consume`-Worker). Der Endpunkt ist ein versions-stabiler Ersatz für die Standard-API `GET /api/_info/queue.json`, die ab Shopware 6.7.8.0 deprecated und in 6.8.0.0 entfernt ist.
+**Zweck:** Liefert den Message-Queue-Backlog pro **Messenger-Transport** — dieselben Zahlen wie `bin/console messenger:stats`, als JSON. Funktioniert transportunabhängig (Doctrine/Datenbank, AMQP/RabbitMQ, Redis, …), weil über die `messenger.receiver`-getaggten Transports und deren `MessageCountAwareInterface::getMessageCount()` gezählt wird. Monitorio pollt den Endpunkt pro Shop, speichert die Zeitreihe und alarmiert bei dauerhaft wachsendem Backlog (Frühwarnsignal für einen hängenden oder überlasteten `messenger:consume`-Worker). Der Endpunkt ist ein versions-stabiler Ersatz für die Standard-API `GET /api/_info/queue.json`, die ab Shopware 6.7.8.0 deprecated und in 6.8.0.0 entfernt ist.
 
 **Auth:** Admin-API-Integration über OAuth `client_credentials` (`Authorization: Bearer <token>`), Route-Scope `api`. Es ist kein zusätzliches Secret im Shop zu konfigurieren.
 
 **Request:** Kein Request-Body, keine Query-Parameter.
 
-**Response** (`200`, `application/json`): Ein JSON-Array mit einem Objekt pro Queue. `name` ist der `queue_name`, `size` die Anzahl wartender Messages als Integer.
+**Response** (`200`, `application/json`): Ein JSON-Array mit einem Objekt pro Transport. `name` ist der Transport-Name (wie in `messenger:stats`, z. B. `async`, `low_priority`, `failed`), `size` die Anzahl wartender Messages als Integer. Transports ohne wartende Messages erscheinen mit `size: 0`.
 
 ```json
 [
-    { "name": "default", "size": 1234 },
+    { "name": "failed", "size": 0 },
+    { "name": "async", "size": 1234 },
     { "name": "low_priority", "size": 5 }
 ]
 ```
 
-Ein leeres Array `[]` ist ein valider Erfolgsfall (kein Backlog oder kein Doctrine-Transport). Gezählt werden alle noch nicht ausgelieferten Messages (`delivered_at IS NULL`), inklusive verzögerter (delayed) Messages — analog zur Semantik des alten `queue.json`.
+Ein leeres Array `[]` ist ein valider Erfolgsfall (keine zählbaren Transports konfiguriert).
 
 **Bekannte Einschränkungen:**
 
-- Der Backlog wird ausschließlich beim **Doctrine-Transport** gezählt (Tabelle `messenger_messages`). Nutzt der Shop AMQP/RabbitMQ, Redis oder einen In-Memory-Transport, liefert der Endpunkt `200` mit leerem Array `[]` (kein `500`).
-- Der konfigurierte Transport wird nicht geprüft: Bleibt nach einem Wechsel weg vom Doctrine-Transport eine alte `messenger_messages`-Tabelle mit nicht ausgelieferten Alt-Einträgen zurück, meldet der Endpunkt diese Reste als (konstanten) Backlog. Nach einem Transport-Wechsel die Tabelle leeren oder entfernen.
-- Ein abweichend konfigurierter `table_name` des Doctrine-Transports wird nicht unterstützt; der Standard-Tabellenname `messenger_messages` ist fest verdrahtet.
+- Transports, die kein `MessageCountAwareInterface` implementieren (z. B. `scheduler_shopware`), können nicht gezählt werden und fehlen in der Antwort — analog zur NOTE von `messenger:stats`.
+- Ist ein Transport nicht erreichbar (z. B. AMQP-Broker down), wird er ausgelassen statt die Antwort mit `500` zu beenden; sein Eintrag fehlt dann im Poll.
+- Die Zählung entspricht der `messenger:stats`-Semantik des jeweiligen Transports; beim Doctrine-Transport zählen z. B. verzögerte Messages (`available_at` in der Zukunft) nicht mit.
 
 ## Lizenz
 

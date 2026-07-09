@@ -4,6 +4,19 @@ Status: Konzept zur Umsetzung
 Basis: [message_queue_companion_endpoint.md](message_queue_companion_endpoint.md) — **API-Contract dort ist FIX**
 Branch: `feature/EMZ-message-queue-endpoint`
 
+> **Revision 2026-07-09 (nach Erstumsetzung):** Auf Anweisung wurde die Datenquelle
+> von der DBAL-Query auf `messenger_messages` (funktioniert nur beim Doctrine-Transport,
+> d. h. bei kleinen Shops) auf die **`messenger:stats`-Mechanik** umgestellt:
+> `tagged_iterator` über `messenger.receiver` (index-by `alias`) +
+> `MessageCountAwareInterface::getMessageCount()` pro Transport. Damit funktioniert der
+> Endpunkt auch mit AMQP/RabbitMQ/Redis. Response-Format `[{name,size}]` bleibt identisch;
+> Semantik-Deltas gegenüber der Spec: `name` = Transport-Name statt `queue_name`
+> (`async` statt `default`), zählbare Transports erscheinen auch mit `size: 0` (z. B.
+> `failed`), delayed Messages zählen beim Doctrine-Transport nicht mit
+> (`available_at <= now`-Filter des Receivers), nicht zählbare/nicht erreichbare
+> Transports werden ausgelassen. Die Abschnitte unten beschreiben die ursprüngliche
+> V1-Umsetzung und bleiben als Historie stehen.
+
 ## Ziel-Umgebung
 
 - Referenz-Shop: Shopware 6.7.8.2 (demo-1, ddev), DBAL 4.4.3, Symfony 7.4

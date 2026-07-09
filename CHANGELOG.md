@@ -9,7 +9,7 @@ und das Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Hinzugefügt
 
-- Endpunkt `GET /api/monitorio/message-queue`: liefert den exakten Message-Queue-Backlog (wartende Messages pro `queue_name`) aus der `messenger_messages`-Tabelle des Doctrine-Transports. Versions-stabiler Ersatz für das ab Shopware 6.7.8.0 deprecatete `/api/_info/queue.json`. Ohne Doctrine-Transport wird `200` mit leerem Array `[]` zurückgegeben.
+- Endpunkt `GET /api/monitorio/message-queue`: liefert den Message-Queue-Backlog pro Messenger-Transport als JSON — dieselben Zahlen wie `bin/console messenger:stats`, transportunabhängig (Doctrine, AMQP/RabbitMQ, Redis) über `MessageCountAwareInterface` gezählt. Versions-stabiler Ersatz für das ab Shopware 6.7.8.0 deprecatete `/api/_info/queue.json`. Nicht zählbare Transports (z. B. `scheduler_shopware`) und nicht erreichbare Transports werden ausgelassen statt einen `500` zu erzeugen.
 
 ## [1.0.0]
 

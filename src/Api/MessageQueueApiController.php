@@ -2,17 +2,18 @@
 
 namespace Emz\Monitorio\Api;
 
-use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
 use Symfony\Component\Routing\Annotation\Route;
 
 #[Route(defaults: ['_routeScope' => ['api']])]
 final class MessageQueueApiController extends AbstractController
 {
-    private const MESSENGER_TABLE = 'messenger_messages';
-
-    public function __construct(private readonly Connection $connection)
+    /**
+     * @param iterable<string, object> $receivers alle messenger.receiver-getaggten Transports, indexiert nach Alias
+     */
+    public function __construct(private readonly iterable $receivers)
     {
     }
 
@@ -23,24 +24,23 @@ final class MessageQueueApiController extends AbstractController
     )]
     public function getMessageQueueBacklog(): JsonResponse
     {
-        // Ohne Doctrine-Transport existiert die Messenger-Tabelle nicht -> leeres Backlog, kein 500.
-        if (!$this->connection->createSchemaManager()->tablesExist([self::MESSENGER_TABLE])) {
-            return new JsonResponse([]);
+        $result = [];
+
+        foreach ($this->receivers as $name => $receiver) {
+            // Gleiche Quelle und Semantik wie messenger:stats: Transports ohne
+            // Count-Support (z. B. scheduler_shopware) werden ausgelassen.
+            if (!$receiver instanceof MessageCountAwareInterface) {
+                continue;
+            }
+
+            try {
+                $result[] = ['name' => (string) $name, 'size' => $receiver->getMessageCount()];
+            } catch (\Throwable) {
+                // Nicht erreichbarer Transport (z. B. AMQP down) soll nur seinen
+                // eigenen Eintrag kosten, nicht die gesamte Antwort (kein 500).
+            }
         }
 
-        $rows = $this->connection->fetchAllAssociative(
-            'SELECT queue_name AS name, COUNT(*) AS size
-             FROM ' . self::MESSENGER_TABLE . '
-             WHERE delivered_at IS NULL
-             GROUP BY queue_name'
-        );
-
-        return new JsonResponse(array_map(
-            static fn (array $row): array => [
-                'name' => (string) $row['name'],
-                'size' => (int) $row['size'],
-            ],
-            $rows
-        ));
+        return new JsonResponse($result);
     }
 }
