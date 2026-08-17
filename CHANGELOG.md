@@ -9,7 +9,7 @@ und das Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
 ### Hinzugefügt
 
-- Plugin-Konfiguration mit den Einstellungen `projectId`, `shopToken` (beide aus dem Monitorio-Einbau-Code), `jsErrorTrackingEnabled` (Default: aus) und `snippetUrl` (optionaler Override für abweichende Monitorio-Instanzen; Default ist `https://staging-app.monitorio.de/t/v1.js`), alle je Sales-Channel überschreibbar.
+- Plugin-Konfiguration mit den Einstellungen `projectId`, `shopToken` (beide aus dem Monitorio-Einbau-Code), `jsErrorTrackingEnabled` (Default: aus) und `snippetUrl` (optionaler Override für lokale und Staging-Instanzen), alle je Sales-Channel überschreibbar.
 - Feld `buildId` in der Storefront-Konfiguration: Kennung des Storefront-Builds, identisch mit dem Theme-Verzeichnis in den Asset-URLs (`/theme/<buildId>/js/...`). Wechselt bei jedem `theme:compile` und dient später als Deploy-Marker und Sourcemap-Schlüssel. Entfällt bei Sales-Channels ohne Theme. Wird von Monitorio derzeit noch nicht ausgewertet.
 - JS Error Tracking: Ist die Einstellung aktiv und sind Projekt-ID und Shop-Token hinterlegt, injiziert das Plugin im Storefront-`<head>` ein `window.__monitorio`-Objekt (`projectId`, `shopToken`, `salesChannelId`, `context`, `buildId`) und lädt anschließend asynchron das von Monitorio gehostete Snippet. Der Loader hängt vor Favicon, Title und Stylesheets, läuft komplett in `try/catch` und kann die Storefront nicht brechen. Tracking-Code selbst bringt das Plugin nicht mit. `context` ergibt sich aus dem Präfix der aktiven Route: `frontend.checkout.` → `checkout`, `frontend.account.` → `account`, sonst `storefront`.
 

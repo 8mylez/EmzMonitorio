@@ -17,17 +17,14 @@ use Symfony\Component\HttpFoundation\RequestStack;
 final class JsErrorTrackingConfigProvider
 {
     /**
-     * Von Monitorio gehostet und versioniert; zeigt derzeit auf die Staging-Instanz.
-     * Bewusst ein App-Host ohne www-Umweg: die Apex-Domain monitorio.de antwortet mit 307
-     * auf www und wuerde jeden Seitenaufruf einen zusaetzlichen Round-Trip kosten.
-     *
-     * Aus dieser URL leitet das Snippet auch seinen Ingest-Endpunkt ab
-     * (`<base>/t/e/<projectId>`) - Quelle und Ziel haengen an diesem einen Wert.
+     * Von Monitorio gehostet und versioniert. Bewusst der App-Host ohne www-Umweg: die
+     * Apex-Domain monitorio.de antwortet mit 307 auf www und wuerde jeden Seitenaufruf
+     * einen zusaetzlichen Round-Trip kosten.
      *
      * Der Endpunkt muss `Access-Control-Allow-Origin` senden - der Loader laedt das Script
      * mit crossOrigin="anonymous", damit keine Cookies mitgehen.
      */
-    public const SNIPPET_URL = 'https://staging-app.monitorio.de/t/v1.js';
+    public const SNIPPET_URL = 'https://app.monitorio.de/t/v1.js';
 
     private const CONFIG_ENABLED = 'EmzMonitorio.config.jsErrorTrackingEnabled';
     private const CONFIG_PROJECT_ID = 'EmzMonitorio.config.projectId';
@@ -128,9 +125,9 @@ final class JsErrorTrackingConfigProvider
     }
 
     /**
-     * Der Standardfall ist die Konstante; das Config-Feld existiert fuer abweichende
-     * Monitorio-Instanzen (lokal, Produktion). Das Snippet leitet seinen Ingest-Endpunkt
-     * aus genau dieser URL ab, deshalb reicht dieser eine Wert zum Umbiegen.
+     * Der Standardfall ist die Konstante; das Config-Feld existiert fuer lokale und
+     * Staging-Instanzen von Monitorio. Das Snippet leitet seinen Ingest-Endpunkt aus
+     * genau dieser URL ab, deshalb reicht dieser eine Wert zum Umbiegen.
      */
     private function resolveSnippetUrl(?string $salesChannelId): string
     {

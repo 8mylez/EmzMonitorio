@@ -40,8 +40,8 @@
             <name>snippetUrl</name>
             <label>Snippet URL (optional)</label>
             <label lang="de-DE">Snippet-URL (optional)</label>
-            <helpText>Overrides the hosted snippet URL, e.g. for a local or production Monitorio instance. Leave empty to use https://staging-app.monitorio.de/t/v1.js. The ingest endpoint is derived from this URL by the snippet itself.</helpText>
-            <helpText lang="de-DE">Überschreibt die URL des gehosteten Snippets, etwa für eine lokale oder Produktiv-Instanz von Monitorio. Leer lassen für https://staging-app.monitorio.de/t/v1.js. Den Ingest-Endpunkt leitet das Snippet selbst aus dieser URL ab.</helpText>
+            <helpText>Overrides the hosted snippet URL, e.g. for a local or staging Monitorio instance. Leave empty to use https://app.monitorio.de/t/v1.js. The ingest endpoint is derived from this URL by the snippet itself.</helpText>
+            <helpText lang="de-DE">Überschreibt die URL des gehosteten Snippets, etwa für eine lokale oder Staging-Instanz von Monitorio. Leer lassen für https://app.monitorio.de/t/v1.js. Den Ingest-Endpunkt leitet das Snippet selbst aus dieser URL ab.</helpText>
         </input-field>
     </card>
 </config>

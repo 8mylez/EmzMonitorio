@@ -51,7 +51,7 @@ bin/console cache:clear
 
 Ist die Einstellung aktiv **und** sind Projekt-ID und Shop-Token hinterlegt, hängt das Plugin einen Loader in den Storefront-`<head>` — vor Favicon, Title und Stylesheets, damit auch frühe Fehler erfasst werden. Fehlt eines davon, wird nichts ausgeliefert.
 
-Der Loader setzt `window.__monitorio` und lädt anschließend das Snippet asynchron von `https://staging-app.monitorio.de/t/v1.js`. Der komplette Block liegt in einem `try/catch`; ein Fehler darin bleibt folgenlos für die Storefront.
+Der Loader setzt `window.__monitorio` und lädt anschließend das Snippet asynchron von `https://app.monitorio.de/t/v1.js`. Der komplette Block liegt in einem `try/catch`; ein Fehler darin bleibt folgenlos für die Storefront.
 
 Der Loader lädt mit `crossOrigin="anonymous"`, damit keine Cookies an den App-Host mitgehen. Das setzt voraus, dass der Endpunkt `Access-Control-Allow-Origin` sendet und den Content-Type `application/javascript` — bei `text/html` blockiert der Browser das Script wegen `X-Content-Type-Options: nosniff`.
 
