@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/shopware/shopware/trunk/src/Core/System/SystemConfig/Schema/config.xsd">
+
+    <card>
+        <title>Monitorio connection</title>
+        <title lang="de-DE">Monitorio-Anbindung</title>
+
+        <input-field type="int">
+            <name>projectId</name>
+            <label>Project ID</label>
+            <label lang="de-DE">Projekt-ID</label>
+            <helpText>ID of the Monitorio project this shop reports to. Shown together with the shop token in the Monitorio setup dialog.</helpText>
+            <helpText lang="de-DE">ID des Monitorio-Projekts, in das dieser Shop meldet. Steht in Monitorio unter „Einrichtung" zusammen mit dem Shop-Token.</helpText>
+        </input-field>
+
+        <input-field type="text">
+            <name>shopToken</name>
+            <label>Shop token</label>
+            <label lang="de-DE">Shop-Token</label>
+            <helpText>Token issued by Monitorio for this shop. Authenticates the storefront payloads against the Monitorio ingest. The read-only admin API endpoints of this plugin do not need it.</helpText>
+            <helpText lang="de-DE">Von Monitorio für diesen Shop ausgestelltes Token. Authentifiziert die Storefront-Payloads gegenüber dem Monitorio-Ingest. Die Read-only-Admin-API-Endpunkte dieses Plugins brauchen es nicht.</helpText>
+        </input-field>
+    </card>
+
+    <card>
+        <title>JavaScript error tracking</title>
+        <title lang="de-DE">JavaScript-Fehler-Tracking</title>
+
+        <input-field type="bool">
+            <name>jsErrorTrackingEnabled</name>
+            <label>Enable JS error tracking</label>
+            <label lang="de-DE">JS Error Tracking aktivieren</label>
+            <helpText>Injects the loader for the Monitorio tracking snippet into the storefront head. Requires a configured shop token.</helpText>
+            <helpText lang="de-DE">Bindet den Loader für das Monitorio-Tracking-Snippet im Storefront-Head ein. Setzt ein hinterlegtes Shop-Token voraus.</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
+
+        <input-field type="text">
+            <name>snippetUrl</name>
+            <label>Snippet URL (optional)</label>
+            <label lang="de-DE">Snippet-URL (optional)</label>
+            <helpText>Overrides the hosted snippet URL, e.g. for a local or staging Monitorio instance. Leave empty to use https://app.monitorio.de/t/v1.js. The ingest endpoint is derived from this URL by the snippet itself.</helpText>
+            <helpText lang="de-DE">Überschreibt die URL des gehosteten Snippets, etwa für eine lokale oder Staging-Instanz von Monitorio. Leer lassen für https://app.monitorio.de/t/v1.js. Den Ingest-Endpunkt leitet das Snippet selbst aus dieser URL ab.</helpText>
+        </input-field>
+    </card>
+</config>

@@ -1,0 +1,34 @@
+{% sw_extends '@Storefront/storefront/layout/meta.html.twig' %}
+
+{#
+    Der Loader haengt hinten an den Meta-Tags und steht damit noch vor Favicon, Canonical,
+    Title und Stylesheets. Das ist die frueheste Stelle im <head>, an der ein Script laufen
+    kann, ohne das Charset-Meta aus den ersten Bytes zu verdraengen. Der von Shopware
+    vorgesehene Block `layout_head_javascript_tracking` liegt hinter den Stylesheets - dort
+    wartet ein Inline-Script auf das CSS und verpasst genau die fruehen Fehler.
+#}
+{% block layout_head_meta_tags %}
+    {{ parent() }}
+
+    {% block layout_head_emz_monitorio_js_error_tracking %}
+        {% set emzMonitorioTracking = emz_monitorio_js_error_tracking() %}
+
+        {% if emzMonitorioTracking %}
+            <script>
+                (function () {
+                    try {
+                        window.__monitorio = {{ emzMonitorioTracking.config|raw }};
+
+                        var script = document.createElement('script');
+                        script.src = {{ emzMonitorioTracking.snippetUrl|raw }};
+                        script.async = true;
+                        script.crossOrigin = 'anonymous';
+                        document.head.appendChild(script);
+                    } catch (e) {
+                        /* Monitorio darf die Storefront unter keinen Umstaenden brechen. */
+                    }
+                })();
+            </script>
+        {% endif %}
+    {% endblock %}
+{% endblock %}
