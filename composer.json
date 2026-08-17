@@ -2,7 +2,7 @@
     "name": "emz/monitorio",
     "description": "Shopware 6 plugin that forwards selected Monolog log records and custom events to a Monitorio ingest endpoint.",
     "type": "shopware-platform-plugin",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "license": "MIT",
     "authors": [
         {
