@@ -44,4 +44,25 @@
             <helpText lang="de-DE">Überschreibt die URL des gehosteten Snippets, etwa für eine lokale oder Staging-Instanz von Monitorio. Leer lassen für https://app.monitorio.de/t/v1.js. Den Ingest-Endpunkt leitet das Snippet selbst aus dieser URL ab.</helpText>
         </input-field>
     </card>
+
+    <card>
+        <title>Stock monitoring</title>
+        <title lang="de-DE">Lagerbestand-Monitoring</title>
+
+        <input-field type="password">
+            <name>ingestToken</name>
+            <label>Ingest token</label>
+            <label lang="de-DE">Ingest-Token</label>
+            <helpText>Server secret for the stock push (Authorization: Bearer). Issued and rotated on the Monitorio setup page of the project. This is NOT the public shop token used for JS error tracking. The stock push is active as soon as project ID and ingest token are set; it applies globally, not per sales channel.</helpText>
+            <helpText lang="de-DE">Server-Geheimnis für den Bestands-Push (Authorization: Bearer). Wird auf der Monitorio-Setup-Seite des Projekts ausgestellt und rotiert. Das ist NICHT das öffentliche Shop-Token des JS Error Trackings. Der Bestands-Push ist aktiv, sobald Projekt-ID und Ingest-Token gesetzt sind; er gilt global, nicht je Sales-Channel.</helpText>
+        </input-field>
+
+        <input-field type="text">
+            <name>monitorioBaseUrl</name>
+            <label>Monitorio base URL (optional)</label>
+            <label lang="de-DE">Monitorio-Basis-URL (optional)</label>
+            <helpText>Overrides the Monitorio base URL for the stock push, e.g. for a local or staging instance. Leave empty to use https://app.monitorio.de.</helpText>
+            <helpText lang="de-DE">Überschreibt die Monitorio-Basis-URL für den Bestands-Push, etwa für eine lokale oder Staging-Instanz. Leer lassen für https://app.monitorio.de.</helpText>
+        </input-field>
+    </card>
 </config>

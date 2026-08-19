@@ -40,5 +40,67 @@
             <argument type="service" id="Emz\Monitorio\Storefront\JsErrorTracking\JsErrorTrackingConfigProvider"/>
             <tag name="twig.extension"/>
         </service>
+
+        <!-- Stock-Push (docs/stock_push_konzept.md) -->
+
+        <service id="Emz\Monitorio\Stock\StockPushConfig">
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+        </service>
+
+        <service id="Emz\Monitorio\Stock\StockStateStore">
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
+        </service>
+
+        <service id="Emz\Monitorio\Stock\StockOutbox">
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
+        </service>
+
+        <service id="Emz\Monitorio\Stock\StockEventBuilder"/>
+
+        <service id="Emz\Monitorio\Stock\MonitorioStockClient">
+            <argument type="service" id="http_client"/>
+            <argument type="service" id="Emz\Monitorio\Stock\StockPushConfig"/>
+        </service>
+
+        <service id="Emz\Monitorio\Stock\StockPushService">
+            <argument type="service" id="Emz\Monitorio\Stock\StockPushConfig"/>
+            <argument type="service" id="Emz\Monitorio\Stock\StockStateStore"/>
+            <argument type="service" id="Emz\Monitorio\Stock\StockOutbox"/>
+            <argument type="service" id="Emz\Monitorio\Stock\StockEventBuilder"/>
+            <argument type="service" id="Emz\Monitorio\Stock\MonitorioStockClient"/>
+            <argument type="service" id="monolog.logger"/>
+            <argument type="service" id="notification.repository" on-invalid="null"/>
+        </service>
+
+        <service id="Emz\Monitorio\Stock\Message\StockChangedHandler">
+            <argument type="service" id="Emz\Monitorio\Stock\StockPushService"/>
+            <tag name="messenger.message_handler"/>
+        </service>
+
+        <service id="Emz\Monitorio\Stock\Subscriber\StockChangeSubscriber">
+            <argument type="service" id="messenger.default_bus"/>
+            <argument type="service" id="Emz\Monitorio\Stock\StockPushConfig"/>
+            <tag name="kernel.event_subscriber"/>
+        </service>
+
+        <service id="Emz\Monitorio\Stock\ScheduledTask\StockReconciliationTask">
+            <tag name="shopware.scheduled.task"/>
+        </service>
+
+        <!-- handles explizit: der __invoke(ScheduledTask)-Typehint der Basisklasse
+             wuerde sonst auf alle ScheduledTask-Messages matchen -->
+        <service id="Emz\Monitorio\Stock\ScheduledTask\StockReconciliationTaskHandler">
+            <argument type="service" id="scheduled_task.repository"/>
+            <argument type="service" id="monolog.logger"/>
+            <argument type="service" id="Emz\Monitorio\Stock\StockPushService"/>
+            <tag name="messenger.message_handler" handles="Emz\Monitorio\Stock\ScheduledTask\StockReconciliationTask"/>
+        </service>
+
+        <service id="Emz\Monitorio\Stock\Command\StockBaselineCommand">
+            <argument type="service" id="Emz\Monitorio\Stock\StockPushConfig"/>
+            <argument type="service" id="Emz\Monitorio\Stock\StockPushService"/>
+            <argument type="service" id="Emz\Monitorio\Stock\StockOutbox"/>
+            <tag name="console.command"/>
+        </service>
     </services>
 </container>

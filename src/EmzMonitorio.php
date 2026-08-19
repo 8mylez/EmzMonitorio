@@ -2,6 +2,7 @@
 
 namespace Emz\Monitorio;
 
+use Doctrine\DBAL\Connection;
 use Shopware\Core\Framework\Plugin;
 use Shopware\Core\Framework\Plugin\Context\ActivateContext;
 use Shopware\Core\Framework\Plugin\Context\DeactivateContext;
@@ -24,7 +25,10 @@ class EmzMonitorio extends Plugin
             return;
         }
 
-        // Remove or deactivate the data created by the plugin
+        /** @var Connection $connection */
+        $connection = $this->container->get(Connection::class);
+        $connection->executeStatement('DROP TABLE IF EXISTS `emz_monitorio_stock_outbox`');
+        $connection->executeStatement('DROP TABLE IF EXISTS `emz_monitorio_stock_state`');
     }
 
     public function activate(ActivateContext $activateContext): void
