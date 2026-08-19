@@ -5,6 +5,20 @@ Alle nennenswerten Änderungen an diesem Plugin werden in dieser Datei dokumenti
 Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 und das Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.3.0] - 2026-08-20
+
+### Hinzugefügt
+
+- Lagerbestand-Push an den Monitorio-Stock-Ingest (`POST {monitorioBaseUrl}/ingest/stock/{projectId}`, Bearer-Auth): meldet Bestands-Zustände (vorher/nachher) aller Leaf-Produkte als Batches — live über `ProductStockAlteredEvent` + `product.written` (asynchron via Messenger), per Reconciliation-ScheduledTask `emz_monitorio.stock_reconciliation` (Default 300 s, fängt auch Direkt-SQL-Importe) und als Baseline-Vollimport über `bin/console emz:monitorio:stock:baseline`. Transition-Erkennung, Filter und Alarme passieren serverseitig in Monitorio.
+- Zustandstabelle `emz_monitorio_stock_state` (zuletzt bestätigt gemeldeter Stand, Quelle der `previous*`-Werte; wird erst nach Response 204 fortgeschrieben) und Outbox `emz_monitorio_stock_outbox` (persistierte Batches: Retries mit identischer `batchId` über Prozess-Neustarts hinweg, Fallback-Puffer bei nicht erreichbarem Monitorio, Retention 72 h / max. 500 offene Batches). Beide Tabellen werden bei Deinstallation ohne „Nutzerdaten behalten" entfernt.
+- Statuscode-Handling nach fixem API-Contract (`docs/stock_companion_push.md`): 429/503/Netzwerkfehler → Retry mit `Retry-After`/Backoff und identischer `batchId`; 413 → kleinere neue Batches mit neuen `batchId`s; 400 → verwerfen + Error-Log; 401/403 → Versand 60 min pausieren + Admin-Notification.
+- Neue Konfiguration: `EmzMonitorio.config.ingestToken` (Server-Geheimnis für den Bestands-Push, ausdrücklich nicht der öffentliche `shopToken`) und optionaler Override `EmzMonitorio.config.monitorioBaseUrl` (Default `https://app.monitorio.de`); beide gelten global. Der Push ist aktiv, sobald Projekt-ID und Ingest-Token gesetzt sind.
+- Standalone-Test-Bootstrap (`tests/bootstrap-standalone.php`): Unit- und DB-Tests laufen ohne Shopware-Testkernel; DB-Tests in eigener Test-Datenbank.
+
+### Behoben
+
+- `LogReaderTest`: zwei Tests lasen mit `since='-1 day'` gegen Fixtures mit festem Zeitstempel (2026-04-26) und schlugen deshalb seit dem 27.04.2026 fehl.
+
 ## [1.2.0] - 2026-08-17
 
 ### Hinzugefügt
