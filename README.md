@@ -7,6 +7,7 @@ Companion-Plugin für Monitorio. Leitet ausgewählte Monolog-Log-Records und ben
 - **Log-Forwarding:** Ausgewählte Monolog-Log-Records und benutzerdefinierte Events werden regelbasiert an einen Monitorio-Ingest-Endpunkt weitergeleitet.
 - **Monitoring-Endpunkte:** Endpunkte in der Admin-API liefern Kennzahlen, die Monitorio pro Shop pollt (freier Speicherplatz, Shop-Logs, Message-Queue-Backlog).
 - **JS Error Tracking:** Optional bindet das Plugin im Storefront-`<head>` den Loader für das von Monitorio gehostete Tracking-Snippet ein.
+- **Lagerbestand-Push:** Pusht Bestands-Events (Bestand vorher/nachher je Produkt) als Batches an den Monitorio-Stock-Ingest — Grundlage für Back-in-Stock-Alarme und Out-of-Stock-Reports. Details unter [Lagerbestand-Push](#lagerbestand-push-stock-monitoring).
 
 ## Voraussetzungen
 
@@ -28,15 +29,16 @@ Die Einstellungen stehen im Admin unter **Erweiterungen > Meine Erweiterungen > 
 | Einstellung | Schlüssel | Default |
 |---|---|---|
 | Projekt-ID | `EmzMonitorio.config.projectId` | leer |
-| Shop-Token | `EmzMonitorio.config.shopToken` | leer |
+| Monitorio-URL (optional) | `EmzMonitorio.config.monitorioBaseUrl` | leer → `https://app.monitorio.de` |
 | JS Error Tracking aktivieren | `EmzMonitorio.config.jsErrorTrackingEnabled` | aus |
-| Snippet-URL (optional) | `EmzMonitorio.config.snippetUrl` | leer → gehostetes Snippet |
+| Shop-Token (öffentlich) | `EmzMonitorio.config.shopToken` | leer |
+| Ingest-Token (geheim) | `EmzMonitorio.config.ingestToken` | leer → Lagerbestand-Push aus |
 
-**Projekt-ID** und **Shop-Token** stehen in Monitorio unter „Einrichtung" im Einbau-Code. Beide sind für das JS Error Tracking Pflicht — das Snippet bricht ohne eines von beiden still ab, deshalb liefert das Plugin dann gar nichts aus. Das Token ist kein Geheimnis, es steht im Quelltext jeder Shopseite; die Zuordnung schützt Monitorio zusätzlich über einen Origin-Check gegen die registrierten Shop-Domains.
+**Projekt-ID** und **Shop-Token** stehen in Monitorio unter „Einrichtung" im Einbau-Code. Beide sind für das JS Error Tracking Pflicht — das Snippet bricht ohne eines von beiden still ab, deshalb liefert das Plugin dann gar nichts aus. Das Shop-Token ist kein Geheimnis, es steht im Quelltext jeder Shopseite; die Zuordnung schützt Monitorio zusätzlich über einen Origin-Check gegen die registrierten Shop-Domains. Das **Ingest-Token** dagegen ist ein Server-Geheimnis für den Lagerbestand-Push — die beiden dürfen nie vertauscht werden, Details im Stock-Abschnitt unten.
 
 Die Admin-API-Endpunkte weiter unten brauchen keines von beidem — die laufen über Shopwares Admin-OAuth.
 
-Die **Snippet-URL** bleibt normalerweise leer. Sie existiert für lokale und Staging-Instanzen von Monitorio; das Snippet leitet seinen Ingest-Endpunkt aus genau dieser URL ab, ein Wert genügt also zum Umbiegen.
+Die **Monitorio-URL** bleibt normalerweise leer und benennt die eine Instanz, mit der der Shop spricht: Von ihr lädt die Storefront das Tracking-Snippet (`{monitorioBaseUrl}/t/v1.js`), an sie sendet der Server den Bestands-Push. Das Feld existiert für lokale und Staging-Instanzen; das Snippet leitet seinen Ingest-Endpunkt aus seiner Lade-URL ab, ein Wert genügt also zum Umbiegen. Bis Version 1.2 hieß die Einstellung `snippetUrl` und enthielt die volle Snippet-URL — ein gesetzter Wert wird beim Plugin-Update automatisch übernommen.
 
 Beim Setzen per CLI Zahl und Schalter als echte JSON-Werte schreiben, nicht als String:
 
@@ -106,6 +108,55 @@ Das Snippet sammelt fünf Sekunden lang und schickt dann gebündelt; im Netzwerk
 Das Snippet selbst hostet und versioniert Monitorio; es steckt bewusst **nicht** im Plugin, damit Snippet-Updates ohne Plugin-Release ausgerollt werden können. Die URL liegt als Konstante `JsErrorTrackingConfigProvider::SNIPPET_URL` im Code.
 
 Eine Änderung der Einstellung greift nach `bin/console cache:clear`.
+
+## Lagerbestand-Push (Stock-Monitoring)
+
+Der Shop pusht Bestands-**Zustände** (Bestand vorher/nachher je Leaf-Produkt, also je Variante bzw. variantenlosem Produkt) als Batches an `POST {monitorioBaseUrl}/ingest/stock/{projectId}`. Jede Interpretation — Transition-Erkennung (back in stock / out of stock), Abverkauf-Filter, Alarme, Reports — passiert serverseitig in Monitorio. Es werden immer **alle** Leaf-Produkte gemeldet, auch inaktive und Abverkauf-Produkte (`isCloseout`); gefiltert wird in Monitorio. Der API-Contract ist in [docs/stock_companion_push.md](docs/stock_companion_push.md) festgeschrieben, die Umsetzungsentscheidungen in [docs/stock_push_konzept.md](docs/stock_push_konzept.md).
+
+### Einrichtung
+
+1. **Ingest-Token** von der Monitorio-Setup-Seite des Projekts holen (Projekt → Statistiken → Lagerbestand → Einrichtung). Das Token ist ein **Server-Geheimnis** — nicht zu verwechseln mit dem öffentlichen Shop-Token des JS Error Trackings.
+2. Projekt-ID und Ingest-Token hinterlegen (der Push ist aktiv, sobald beide gesetzt sind — es gibt keinen eigenen Schalter):
+
+   ```bash
+   bin/console system:config:set --json EmzMonitorio.config.projectId 1
+   bin/console system:config:set EmzMonitorio.config.ingestToken '<token>'
+   bin/console cache:clear
+   ```
+
+3. Baseline-Vollimport anstoßen (initialisiert Monitorio und die lokale Zustandstabelle, löst nie Alarme aus; jederzeit manuell wiederholbar):
+
+   ```bash
+   bin/console emz:monitorio:stock:baseline
+   ```
+
+Das Ziel ergibt sich aus der gemeinsamen **Monitorio-URL** (Karte „Monitorio-Anbindung", leer → `https://app.monitorio.de`). Der Push liest alle Werte global — Sales-Channel-Overrides wirken nur auf das JS Error Tracking.
+
+### Funktionsweise
+
+Drei Quellen, im Event über `source` unterscheidbar:
+
+- **`subscriber`** (live): `ProductStockAlteredEvent` (Order-Lifecycle — Shopware 6.7 schreibt Bestand beim Bestellen per Direkt-SQL, dieses Core-Event ist dort der Hook) plus `product.written` mit `stock`/`availableStock` im Payload (Admin, Sync-API). Der Subscriber stellt nur eine leichte Message in die Messenger-Queue — im auslösenden Request passiert nie HTTP.
+- **`reconciliation`**: ScheduledTask `emz_monitorio.stock_reconciliation` (Default alle 300 s, änderbar über `scheduled_task.run_interval`). Diffed die eigene Zustandstabelle gegen `product` und fängt damit auch Änderungen, die am Event-System vorbeilaufen (ERP-Importe per Direkt-SQL).
+- **`baseline`**: der Vollimport per Command; außerdem werden Produkte ohne Zustandszeile (z. B. neu angelegte) automatisch als `baseline`-Event gemeldet — sie lösen serverseitig nie Alarme aus.
+
+Robustheit: Jeder Batch wird mitsamt seiner `batchId` in der Outbox-Tabelle persistiert, **bevor** er gesendet wird. Die Zustandstabelle (zuletzt bestätigt gemeldeter Stand, Quelle der `previous*`-Werte) wird erst nach Response `204` fortgeschrieben — schlägt der Versand fehl, meldet die nächste Reconciliation die Differenz erneut, es geht kein Endzustand verloren. Transiente Fehler (`429`/`503`/Netzwerk) werden mit `Retry-After` bzw. exponentiellem Backoff und **identischer `batchId`** wiederholt (der Server ist auf `batchId` idempotent); `413` schneidet den Batch in kleinere neue Batches; `400` wird verworfen und geloggt; bei `401`/`403` pausiert der Versand für 60 Minuten und es erscheint eine Admin-Notification (Glocke) — typisch nach einer Token-Rotation in Monitorio. Nicht zustellbare Batches werden nach 72 h bzw. ab 500 offenen Batches verworfen (Warning im Log); die Reconciliation meldet offene Differenzen anschließend erneut.
+
+Der Versand läuft asynchron über die Messenger-Queue — ein laufender Worker (`bin/console messenger:consume async scheduler_shopware` bzw. das Betriebs-Setup des Shops) ist Voraussetzung dafür, dass Events und Reconciliation zeitnah verarbeitet werden.
+
+Zwei Plugin-Tabellen gehören dazu: `emz_monitorio_stock_state` (Zustand) und `emz_monitorio_stock_outbox` (persistierte Batches). Beide werden bei der Deinstallation (ohne „Nutzerdaten behalten") entfernt. Eine Bestandshistorie hält der Shop nicht — Historie und Auswertung macht Monitorio.
+
+## Tests
+
+Unit- und DB-Tests laufen ohne Shopware-Testkernel über den Standalone-Bootstrap (DB-Tests nutzen eine eigene Datenbank `emz_monitorio_stock_test`, abgeleitet aus `DATABASE_URL`; alternativ `EMZ_MONITORIO_TEST_DATABASE_URL` setzen):
+
+```bash
+php phpunit.phar \
+    --bootstrap custom/plugins/EmzMonitorio/tests/bootstrap-standalone.php \
+    custom/plugins/EmzMonitorio/tests
+```
+
+In Umgebungen mit vollständigen dev-Dependencies funktioniert weiterhin `tests/TestBootstrap.php` (Shopware `TestBootstrapper`) über die `phpunit.xml` des Plugins.
 
 ## API-Endpunkte
 

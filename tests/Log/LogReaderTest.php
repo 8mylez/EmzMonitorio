@@ -61,7 +61,7 @@ final class LogReaderTest extends TestCase
 
         $reader = new LogReader($this->logDir, new LogLineParser());
 
-        $entries = $reader->readSince(new \DateTimeImmutable('-1 day'), 'DEBUG', 3);
+        $entries = $reader->readSince(new \DateTimeImmutable('2026-04-26T00:00:00+00:00'), 'DEBUG', 3);
 
         self::assertCount(3, $entries);
     }
@@ -73,7 +73,7 @@ final class LogReaderTest extends TestCase
 
         $reader = new LogReader($this->logDir, new LogLineParser());
 
-        $entries = $reader->readSince(new \DateTimeImmutable('-1 day'), 'DEBUG');
+        $entries = $reader->readSince(new \DateTimeImmutable('2026-04-26T00:00:00+00:00'), 'DEBUG');
 
         self::assertCount(2, $entries);
         self::assertSame('early', $entries[0]->message);
