@@ -29,17 +29,16 @@ Die Einstellungen stehen im Admin unter **Erweiterungen > Meine Erweiterungen > 
 | Einstellung | Schlüssel | Default |
 |---|---|---|
 | Projekt-ID | `EmzMonitorio.config.projectId` | leer |
-| Shop-Token | `EmzMonitorio.config.shopToken` | leer |
+| Monitorio-URL (optional) | `EmzMonitorio.config.monitorioBaseUrl` | leer → `https://app.monitorio.de` |
 | JS Error Tracking aktivieren | `EmzMonitorio.config.jsErrorTrackingEnabled` | aus |
-| Snippet-URL (optional) | `EmzMonitorio.config.snippetUrl` | leer → gehostetes Snippet |
-| Ingest-Token | `EmzMonitorio.config.ingestToken` | leer → Lagerbestand-Push aus |
-| Monitorio-Basis-URL (optional) | `EmzMonitorio.config.monitorioBaseUrl` | leer → `https://app.monitorio.de` |
+| Shop-Token (öffentlich) | `EmzMonitorio.config.shopToken` | leer |
+| Ingest-Token (geheim) | `EmzMonitorio.config.ingestToken` | leer → Lagerbestand-Push aus |
 
-**Projekt-ID** und **Shop-Token** stehen in Monitorio unter „Einrichtung" im Einbau-Code. Beide sind für das JS Error Tracking Pflicht — das Snippet bricht ohne eines von beiden still ab, deshalb liefert das Plugin dann gar nichts aus. Das Token ist kein Geheimnis, es steht im Quelltext jeder Shopseite; die Zuordnung schützt Monitorio zusätzlich über einen Origin-Check gegen die registrierten Shop-Domains.
+**Projekt-ID** und **Shop-Token** stehen in Monitorio unter „Einrichtung" im Einbau-Code. Beide sind für das JS Error Tracking Pflicht — das Snippet bricht ohne eines von beiden still ab, deshalb liefert das Plugin dann gar nichts aus. Das Shop-Token ist kein Geheimnis, es steht im Quelltext jeder Shopseite; die Zuordnung schützt Monitorio zusätzlich über einen Origin-Check gegen die registrierten Shop-Domains. Das **Ingest-Token** dagegen ist ein Server-Geheimnis für den Lagerbestand-Push — die beiden dürfen nie vertauscht werden, Details im Stock-Abschnitt unten.
 
 Die Admin-API-Endpunkte weiter unten brauchen keines von beidem — die laufen über Shopwares Admin-OAuth.
 
-Die **Snippet-URL** bleibt normalerweise leer. Sie existiert für lokale und Staging-Instanzen von Monitorio; das Snippet leitet seinen Ingest-Endpunkt aus genau dieser URL ab, ein Wert genügt also zum Umbiegen.
+Die **Monitorio-URL** bleibt normalerweise leer und benennt die eine Instanz, mit der der Shop spricht: Von ihr lädt die Storefront das Tracking-Snippet (`{monitorioBaseUrl}/t/v1.js`), an sie sendet der Server den Bestands-Push. Das Feld existiert für lokale und Staging-Instanzen; das Snippet leitet seinen Ingest-Endpunkt aus seiner Lade-URL ab, ein Wert genügt also zum Umbiegen. Bis Version 1.2 hieß die Einstellung `snippetUrl` und enthielt die volle Snippet-URL — ein gesetzter Wert wird beim Plugin-Update automatisch übernommen.
 
 Beim Setzen per CLI Zahl und Schalter als echte JSON-Werte schreiben, nicht als String:
 
@@ -131,7 +130,7 @@ Der Shop pusht Bestands-**Zustände** (Bestand vorher/nachher je Leaf-Produkt, a
    bin/console emz:monitorio:stock:baseline
    ```
 
-Die **Monitorio-Basis-URL** bleibt normalerweise leer; das Feld existiert für lokale und Staging-Instanzen. Beide Stock-Einstellungen gelten global, nicht je Sales-Channel.
+Das Ziel ergibt sich aus der gemeinsamen **Monitorio-URL** (Karte „Monitorio-Anbindung", leer → `https://app.monitorio.de`). Der Push liest alle Werte global — Sales-Channel-Overrides wirken nur auf das JS Error Tracking.
 
 ### Funktionsweise
 

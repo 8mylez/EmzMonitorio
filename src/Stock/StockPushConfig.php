@@ -2,6 +2,7 @@
 
 namespace Emz\Monitorio\Stock;
 
+use Emz\Monitorio\Config\MonitorioBaseUrl;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
 
 /**
@@ -14,15 +15,8 @@ use Shopware\Core\System\SystemConfig\SystemConfigService;
  */
 final class StockPushConfig
 {
-    /**
-     * Default analog zum snippetUrl-Muster: Konstante als Standard, Config-Feld
-     * als Override fuer lokale und Staging-Instanzen von Monitorio.
-     */
-    public const DEFAULT_BASE_URL = 'https://app.monitorio.de';
-
     private const CONFIG_PROJECT_ID = 'EmzMonitorio.config.projectId';
     private const CONFIG_INGEST_TOKEN = 'EmzMonitorio.config.ingestToken';
-    private const CONFIG_BASE_URL = 'EmzMonitorio.config.monitorioBaseUrl';
 
     public function __construct(private readonly SystemConfigService $systemConfigService)
     {
@@ -40,9 +34,9 @@ final class StockPushConfig
 
     public function getBaseUrl(): string
     {
-        $configured = trim($this->systemConfigService->getString(self::CONFIG_BASE_URL));
-
-        return rtrim($configured !== '' ? $configured : self::DEFAULT_BASE_URL, '/');
+        return MonitorioBaseUrl::normalize(
+            $this->systemConfigService->getString(MonitorioBaseUrl::CONFIG_KEY)
+        );
     }
 
     /**

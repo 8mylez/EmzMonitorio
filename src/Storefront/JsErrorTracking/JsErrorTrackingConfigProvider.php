@@ -2,6 +2,7 @@
 
 namespace Emz\Monitorio\Storefront\JsErrorTracking;
 
+use Emz\Monitorio\Config\MonitorioBaseUrl;
 use Shopware\Core\PlatformRequest;
 use Shopware\Core\SalesChannelRequest;
 use Shopware\Core\System\SystemConfig\SystemConfigService;
@@ -12,24 +13,21 @@ use Symfony\Component\HttpFoundation\RequestStack;
 /**
  * Liefert die Daten fuer den Loader des von Monitorio gehosteten Tracking-Snippets.
  * Das Plugin bringt bewusst keinen Tracking-Code mit - es injiziert nur Konfiguration
- * und laedt `SNIPPET_URL`, damit Monitorio das Snippet ohne Plugin-Release aktualisieren kann.
+ * und laedt das Snippet von der Monitorio-Instanz, damit Monitorio es ohne
+ * Plugin-Release aktualisieren kann.
  */
 final class JsErrorTrackingConfigProvider
 {
     /**
-     * Von Monitorio gehostet und versioniert. Bewusst der App-Host ohne www-Umweg: die
-     * Apex-Domain monitorio.de antwortet mit 307 auf www und wuerde jeden Seitenaufruf
-     * einen zusaetzlichen Round-Trip kosten.
-     *
-     * Der Endpunkt muss `Access-Control-Allow-Origin` senden - der Loader laedt das Script
-     * mit crossOrigin="anonymous", damit keine Cookies mitgehen.
+     * Pfad der versionierten Snippet-Datei auf der Monitorio-Instanz. Der Endpunkt muss
+     * `Access-Control-Allow-Origin` senden - der Loader laedt das Script mit
+     * crossOrigin="anonymous", damit keine Cookies mitgehen.
      */
-    public const SNIPPET_URL = 'https://app.monitorio.de/t/v1.js';
+    public const SNIPPET_PATH = '/t/v1.js';
 
     private const CONFIG_ENABLED = 'EmzMonitorio.config.jsErrorTrackingEnabled';
     private const CONFIG_PROJECT_ID = 'EmzMonitorio.config.projectId';
     private const CONFIG_SHOP_TOKEN = 'EmzMonitorio.config.shopToken';
-    private const CONFIG_SNIPPET_URL = 'EmzMonitorio.config.snippetUrl';
 
     /**
      * Inline-Script-sichere JSON-Kodierung: `<`, `>`, `&`, `'` und `"` werden innerhalb der
@@ -125,15 +123,18 @@ final class JsErrorTrackingConfigProvider
     }
 
     /**
-     * Der Standardfall ist die Konstante; das Config-Feld existiert fuer lokale und
-     * Staging-Instanzen von Monitorio. Das Snippet leitet seinen Ingest-Endpunkt aus
-     * genau dieser URL ab, deshalb reicht dieser eine Wert zum Umbiegen.
+     * Dieselbe Basis-URL, an die auch der Stock-Push sendet - so landen alle Meldungen
+     * eines Shops in derselben Monitorio-Instanz. Das Snippet leitet seinen
+     * Ingest-Endpunkt selbst aus seiner Lade-URL ab, deshalb reicht der eine Wert
+     * zum Umbiegen auf Staging- oder lokale Instanzen.
      */
     private function resolveSnippetUrl(?string $salesChannelId): string
     {
-        $configured = trim($this->systemConfigService->getString(self::CONFIG_SNIPPET_URL, $salesChannelId));
+        $baseUrl = MonitorioBaseUrl::normalize(
+            $this->systemConfigService->getString(MonitorioBaseUrl::CONFIG_KEY, $salesChannelId)
+        );
 
-        return $configured !== '' ? $configured : self::SNIPPET_URL;
+        return $baseUrl . self::SNIPPET_PATH;
     }
 
     /**

@@ -10,16 +10,16 @@
             <name>projectId</name>
             <label>Project ID</label>
             <label lang="de-DE">Projekt-ID</label>
-            <helpText>ID of the Monitorio project this shop reports to. Shown together with the shop token in the Monitorio setup dialog.</helpText>
-            <helpText lang="de-DE">ID des Monitorio-Projekts, in das dieser Shop meldet. Steht in Monitorio unter „Einrichtung" zusammen mit dem Shop-Token.</helpText>
+            <helpText>ID of the Monitorio project this shop reports to - applies to every feature of this plugin. Shown in Monitorio under "Setup".</helpText>
+            <helpText lang="de-DE">ID des Monitorio-Projekts, in das dieser Shop meldet - gilt für alle Funktionen dieses Plugins. Steht in Monitorio unter „Einrichtung".</helpText>
         </input-field>
 
         <input-field type="text">
-            <name>shopToken</name>
-            <label>Shop token</label>
-            <label lang="de-DE">Shop-Token</label>
-            <helpText>Token issued by Monitorio for this shop. Authenticates the storefront payloads against the Monitorio ingest. The read-only admin API endpoints of this plugin do not need it.</helpText>
-            <helpText lang="de-DE">Von Monitorio für diesen Shop ausgestelltes Token. Authentifiziert die Storefront-Payloads gegenüber dem Monitorio-Ingest. Die Read-only-Admin-API-Endpunkte dieses Plugins brauchen es nicht.</helpText>
+            <name>monitorioBaseUrl</name>
+            <label>Monitorio URL (optional)</label>
+            <label lang="de-DE">Monitorio-URL (optional)</label>
+            <helpText>The Monitorio instance this shop talks to: the storefront loads the JS snippet from here, the server pushes stock data here. Leave empty for https://app.monitorio.de - set it only for a staging or local instance.</helpText>
+            <helpText lang="de-DE">Die Monitorio-Instanz, mit der dieser Shop spricht: Von hier lädt die Storefront das JS-Snippet, hierhin sendet der Server den Bestands-Push. Leer lassen für https://app.monitorio.de - nur für Staging- oder lokale Instanzen setzen.</helpText>
         </input-field>
     </card>
 
@@ -31,17 +31,17 @@
             <name>jsErrorTrackingEnabled</name>
             <label>Enable JS error tracking</label>
             <label lang="de-DE">JS Error Tracking aktivieren</label>
-            <helpText>Injects the loader for the Monitorio tracking snippet into the storefront head. Requires a configured shop token.</helpText>
-            <helpText lang="de-DE">Bindet den Loader für das Monitorio-Tracking-Snippet im Storefront-Head ein. Setzt ein hinterlegtes Shop-Token voraus.</helpText>
+            <helpText>Injects the loader for the Monitorio tracking snippet into the storefront head. Requires the shop token below.</helpText>
+            <helpText lang="de-DE">Bindet den Loader für das Monitorio-Tracking-Snippet im Storefront-Head ein. Setzt das untenstehende Shop-Token voraus.</helpText>
             <defaultValue>false</defaultValue>
         </input-field>
 
         <input-field type="text">
-            <name>snippetUrl</name>
-            <label>Snippet URL (optional)</label>
-            <label lang="de-DE">Snippet-URL (optional)</label>
-            <helpText>Overrides the hosted snippet URL, e.g. for a local or staging Monitorio instance. Leave empty to use https://app.monitorio.de/t/v1.js. The ingest endpoint is derived from this URL by the snippet itself.</helpText>
-            <helpText lang="de-DE">Überschreibt die URL des gehosteten Snippets, etwa für eine lokale oder Staging-Instanz von Monitorio. Leer lassen für https://app.monitorio.de/t/v1.js. Den Ingest-Endpunkt leitet das Snippet selbst aus dieser URL ab.</helpText>
+            <name>shopToken</name>
+            <label>Shop token (public)</label>
+            <label lang="de-DE">Shop-Token (öffentlich)</label>
+            <helpText>Maps browser-reported JS errors to this shop; issued in Monitorio under "Setup" (named shop token there as well). It is rendered into the HTML of every shop page and therefore public - never put the secret ingest token here.</helpText>
+            <helpText lang="de-DE">Ordnet die vom Browser gemeldeten JS-Fehler diesem Shop zu; wird in Monitorio unter „Einrichtung" ausgestellt (heißt dort ebenfalls Shop-Token). Steht im HTML jeder Shopseite und ist damit öffentlich - hier nie das geheime Ingest-Token eintragen.</helpText>
         </input-field>
     </card>
 
@@ -51,18 +51,10 @@
 
         <input-field type="password">
             <name>ingestToken</name>
-            <label>Ingest token</label>
-            <label lang="de-DE">Ingest-Token</label>
-            <helpText>Server secret for the stock push (Authorization: Bearer). Issued and rotated on the Monitorio setup page of the project. This is NOT the public shop token used for JS error tracking. The stock push is active as soon as project ID and ingest token are set; it applies globally, not per sales channel.</helpText>
-            <helpText lang="de-DE">Server-Geheimnis für den Bestands-Push (Authorization: Bearer). Wird auf der Monitorio-Setup-Seite des Projekts ausgestellt und rotiert. Das ist NICHT das öffentliche Shop-Token des JS Error Trackings. Der Bestands-Push ist aktiv, sobald Projekt-ID und Ingest-Token gesetzt sind; er gilt global, nicht je Sales-Channel.</helpText>
-        </input-field>
-
-        <input-field type="text">
-            <name>monitorioBaseUrl</name>
-            <label>Monitorio base URL (optional)</label>
-            <label lang="de-DE">Monitorio-Basis-URL (optional)</label>
-            <helpText>Overrides the Monitorio base URL for the stock push, e.g. for a local or staging instance. Leave empty to use https://app.monitorio.de.</helpText>
-            <helpText lang="de-DE">Überschreibt die Monitorio-Basis-URL für den Bestands-Push, etwa für eine lokale oder Staging-Instanz. Leer lassen für https://app.monitorio.de.</helpText>
+            <label>Ingest token (secret)</label>
+            <label lang="de-DE">Ingest-Token (geheim)</label>
+            <helpText>Server secret for the stock push (Authorization: Bearer) - never leaves the server and is NOT the public shop token above. Issued and rotated on the Monitorio stock setup page of the project. The push is active as soon as project ID and ingest token are set; it applies globally, not per sales channel.</helpText>
+            <helpText lang="de-DE">Server-Geheimnis für den Bestands-Push (Authorization: Bearer) - verlässt den Server nie und ist NICHT das öffentliche Shop-Token oben. Wird auf der Monitorio-Setup-Seite des Projekts (Statistiken → Lagerbestand → Einrichtung) ausgestellt und rotiert. Der Push ist aktiv, sobald Projekt-ID und Ingest-Token gesetzt sind; er gilt global, nicht je Sales-Channel.</helpText>
         </input-field>
     </card>
 </config>

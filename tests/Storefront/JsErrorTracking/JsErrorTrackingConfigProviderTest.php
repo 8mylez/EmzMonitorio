@@ -109,15 +109,23 @@ final class JsErrorTrackingConfigProviderTest extends TestCase
 
     public function testFallsBackToTheHostedSnippetUrl(): void
     {
-        $data = $this->provider(snippetUrl: '')->getLoaderData();
+        $data = $this->provider(baseUrl: '')->getLoaderData();
 
         self::assertIsArray($data);
-        self::assertSame(JsErrorTrackingConfigProvider::SNIPPET_URL, json_decode($data['snippetUrl'], true));
+        self::assertSame('https://app.monitorio.de/t/v1.js', json_decode($data['snippetUrl'], true));
     }
 
-    public function testConfiguredSnippetUrlWins(): void
+    public function testConfiguredBaseUrlMovesTheSnippet(): void
     {
-        $data = $this->provider(snippetUrl: '  http://localhost:8080/t/v1.js  ')->getLoaderData();
+        $data = $this->provider(baseUrl: '  http://localhost:8080  ')->getLoaderData();
+
+        self::assertIsArray($data);
+        self::assertSame('http://localhost:8080/t/v1.js', json_decode($data['snippetUrl'], true));
+    }
+
+    public function testTrailingSlashInTheBaseUrlDoesNotDoubleTheSeparator(): void
+    {
+        $data = $this->provider(baseUrl: 'http://localhost:8080/')->getLoaderData();
 
         self::assertIsArray($data);
         self::assertSame('http://localhost:8080/t/v1.js', json_decode($data['snippetUrl'], true));
@@ -174,9 +182,9 @@ final class JsErrorTrackingConfigProviderTest extends TestCase
         self::assertSame($xss, json_decode($data['config'], true)['shopToken']);
     }
 
-    public function testConfiguredSnippetUrlCannotBreakOutOfTheInlineScript(): void
+    public function testConfiguredBaseUrlCannotBreakOutOfTheInlineScript(): void
     {
-        $data = $this->provider(snippetUrl: '</script><img src=x onerror=alert(1)>')->getLoaderData();
+        $data = $this->provider(baseUrl: '</script><img src=x onerror=alert(1)>')->getLoaderData();
 
         self::assertIsArray($data);
         self::assertStringNotContainsString('<', $data['snippetUrl']);
@@ -259,7 +267,7 @@ final class JsErrorTrackingConfigProviderTest extends TestCase
         mixed $enabled = true,
         int $projectId = 1,
         string $shopToken = '55e7169d9cc49a4a340a3bb9c0ca2afd',
-        string $snippetUrl = '',
+        string $baseUrl = '',
         string $route = 'frontend.home.page',
         ?string $themeId = self::THEME_ID,
     ): JsErrorTrackingConfigProvider {
@@ -269,7 +277,7 @@ final class JsErrorTrackingConfigProviderTest extends TestCase
             ->willReturn(self::BUILD_ID);
 
         return new JsErrorTrackingConfigProvider(
-            $this->keyedConfig($enabled, $projectId, $shopToken, $snippetUrl),
+            $this->keyedConfig($enabled, $projectId, $shopToken, $baseUrl),
             $this->requestStack($route, $themeId),
             $pathBuilder
         );
@@ -285,7 +293,7 @@ final class JsErrorTrackingConfigProviderTest extends TestCase
         mixed $enabled = true,
         int $projectId = 1,
         string $shopToken = '55e7169d9cc49a4a340a3bb9c0ca2afd',
-        string $snippetUrl = '',
+        string $baseUrl = '',
         array &$seen = [],
     ): SystemConfigService {
         $systemConfig = $this->createMock(SystemConfigService::class);
@@ -307,12 +315,12 @@ final class JsErrorTrackingConfigProviderTest extends TestCase
         );
 
         $systemConfig->method('getString')->willReturnCallback(
-            function (string $key, ?string $salesChannelId = null) use ($shopToken, $snippetUrl, &$seen) {
+            function (string $key, ?string $salesChannelId = null) use ($shopToken, $baseUrl, &$seen) {
                 $seen[] = [$key, $salesChannelId];
 
                 return match ($key) {
                     'EmzMonitorio.config.shopToken' => $shopToken,
-                    'EmzMonitorio.config.snippetUrl' => $snippetUrl,
+                    'EmzMonitorio.config.monitorioBaseUrl' => $baseUrl,
                     default => '',
                 };
             }
