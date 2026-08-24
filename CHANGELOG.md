@@ -5,6 +5,13 @@ Alle nennenswerten Änderungen an diesem Plugin werden in dieser Datei dokumenti
 Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 und das Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.4.0] - 2026-08-24
+
+### Hinzugefügt
+
+- Endpunkt `GET /api/_action/emz/monitorio/logs/meta`: meldet Größe (`total_bytes`), Dateianzahl (`file_count`), größte Datei (`largest`, Basename statt Pfad) und jüngste Änderung (`newest_modified_at`) des Log-Verzeichnisses. Erhoben wird ausschließlich über `glob('*.log')` + `filesize()`/`filemtime()` — keine Log-Zeile wird gelesen, kein Parser läuft. Fehlt das Log-Verzeichnis oder ist es leer, kommt `total_bytes: 0` / `file_count: 0` statt eines Fehlers.
+- Der Endpunkt ist bewusst von `GET /api/_action/emz/monitorio/logs` getrennt und kein `meta`-Block in dessen Antwort: Der dortige Scan liest jede `*.log` ab Byte 0 und parst jede Zeile, läuft bei einem mehrere GB großen Log in den HTTP-Timeout und liefert dann gar keine Antwort — die Größenmeldung wäre also ausgerechnet im kritischen Fall nicht abrufbar. Anlass ist ein realer Vorfall: eine nie rotierte 2,08 GB große `var/log/dev.log` ließ den Log-Abruf über einen Monat lang stumm in den Timeout laufen. Beide Endpunkte sehen dieselbe Dateimenge, damit die gemeldete Größe den Scan erklärt.
+
 ## [1.3.0] - 2026-08-20
 
 ### Hinzugefügt

@@ -194,6 +194,27 @@ Liest Shop-Log-Einträge aus. Optionale Query-Parameter: `since` (ISO-8601-Zeitp
 }
 ```
 
+### GET /api/_action/emz/monitorio/logs/meta
+
+Meldet Größe, Dateianzahl und größte Datei des Log-Verzeichnisses (`%kernel.logs_dir%`), ohne eine einzige Log-Zeile zu lesen — nur `filesize()` und `filemtime()` je Datei. Der Aufwand hängt an der Anzahl Dateien, nicht an ihren Bytes; die Antwort kommt deshalb auch dann in Millisekunden, wenn `/logs` an einem mehrere GB großen Log in den HTTP-Timeout läuft. Genau dafür ist der Endpunkt getrennt: Als `meta`-Block in der `/logs`-Antwort wäre die Größe ausgerechnet im kritischen Fall nicht abrufbar.
+
+Erfasst wird dieselbe Dateimenge wie bei `/logs` (`*.log` im Log-Verzeichnis), damit die gemeldete Größe den dortigen Scan erklärt. Keine Query-Parameter. `name` ist der Basename, nicht der Pfad. Existiert das Log-Verzeichnis nicht oder enthält es keine `*.log`-Datei, kommt `total_bytes: 0` und `file_count: 0` mit `largest: null` und `newest_modified_at: null` — kein Fehler.
+
+```json
+{
+    "data": {
+        "total_bytes": 2233382912,
+        "file_count": 2,
+        "largest": {
+            "name": "dev.log",
+            "bytes": 2233381348,
+            "modified_at": "2026-08-24T11:33:21+00:00"
+        },
+        "newest_modified_at": "2026-08-24T11:33:21+00:00"
+    }
+}
+```
+
 ### GET /api/monitorio/message-queue
 
 **Zweck:** Liefert den Message-Queue-Backlog pro **Messenger-Transport** — dieselben Zahlen wie `bin/console messenger:stats`, als JSON. Funktioniert transportunabhängig (Doctrine/Datenbank, AMQP/RabbitMQ, Redis, …), weil über die `messenger.receiver`-getaggten Transports und deren `MessageCountAwareInterface::getMessageCount()` gezählt wird. Monitorio pollt den Endpunkt pro Shop, speichert die Zeitreihe und alarmiert bei dauerhaft wachsendem Backlog (Frühwarnsignal für einen hängenden oder überlasteten `messenger:consume`-Worker). Der Endpunkt ist ein versions-stabiler Ersatz für die Standard-API `GET /api/_info/queue.json`, die ab Shopware 6.7.8.0 deprecated und in 6.8.0.0 entfernt ist.
