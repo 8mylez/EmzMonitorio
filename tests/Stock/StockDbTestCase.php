@@ -18,6 +18,18 @@ use Shopware\Core\Framework\Uuid\Uuid;
  */
 abstract class StockDbTestCase extends TestCase
 {
+    /**
+     * Shopware-Version, in der `product.available_stock` noch ein eigenstaendiger
+     * Wert ist (Bestand abzueglich offener Bestellungen).
+     */
+    protected const SHOPWARE_LEGACY_STOCK = '6.5.8.8';
+
+    /**
+     * Shopware-Version, in der `product.available_stock` nur noch ein Spiegel von
+     * `product.stock` ist - dort speist sich `availableStock` aus `stock`.
+     */
+    protected const SHOPWARE_MIRRORED_STOCK = '6.7.8.2';
+
     private const TEST_DATABASE = 'emz_monitorio_stock_test';
 
     protected static ?Connection $connection = null;

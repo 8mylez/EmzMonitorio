@@ -22,6 +22,11 @@ use Symfony\Component\HttpClient\Response\MockResponse;
  * gegen einen Mock-Endpunkt und eine echte Datenbank. Kernpunkte:
  * Zustandstabelle erst NACH 204, Retries mit IDENTISCHER batchId,
  * 413 => kleinere NEUE Batches mit NEUEN batchIds.
+ *
+ * Laeuft bewusst auf der Legacy-Stock-Semantik (< 6.6): dort duerfen `stock` und
+ * `available_stock` auseinanderlaufen, sodass die Fixtures beide Werte
+ * unterscheidbar halten. Welche Spalte je Version die Quelle ist, prueft
+ * {@see StockValueMappingTest}.
  */
 final class StockPushServiceTest extends StockDbTestCase
 {
@@ -364,7 +369,7 @@ final class StockPushServiceTest extends StockDbTestCase
 
         return new StockPushService(
             $config,
-            new StockStateStore($connection),
+            new StockStateStore($connection, self::SHOPWARE_LEGACY_STOCK),
             new StockOutbox($connection),
             new StockEventBuilder(),
             new MonitorioStockClient($httpClient, $config),

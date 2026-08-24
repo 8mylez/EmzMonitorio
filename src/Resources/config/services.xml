@@ -47,8 +47,11 @@
             <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
         </service>
 
+        <!-- Die Shopware-Version entscheidet, woher `availableStock` kommt
+             (ab 6.6 spiegelt `product.available_stock` nur noch `product.stock`) -->
         <service id="Emz\Monitorio\Stock\StockStateStore">
             <argument type="service" id="Doctrine\DBAL\Connection"/>
+            <argument>%kernel.shopware_version%</argument>
         </service>
 
         <service id="Emz\Monitorio\Stock\StockOutbox">

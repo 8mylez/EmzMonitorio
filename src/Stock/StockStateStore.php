@@ -14,11 +14,23 @@ use Shopware\Core\Framework\Uuid\Uuid;
  * Bestand lebt in Shopware auf den Leaf-Produkten (Varianten bzw. variantenlose
  * Produkte, `child_count` 0/NULL) - genau diese werden gemeldet. Inaktive und
  * Abverkauf-Produkte werden bewusst NICHT gefiltert (Spec Abschnitt 3/8).
+ *
+ * Die Quelle fuer `availableStock` haengt an der Shopware-Version, siehe
+ * {@see self::availableStockExpression()}.
  */
 final class StockStateStore
 {
-    public function __construct(private readonly Connection $connection)
-    {
+    /**
+     * Ab dieser Version ist `product.available_stock` kein eigener Wert mehr,
+     * sondern ein Spiegel von `product.stock`. Schwelle bewusst mit `-dev`:
+     * so zaehlen auch dev-/RC-Builds von 6.6 schon zur neuen Welt.
+     */
+    private const STOCK_MIRROR_SINCE = '6.6.0.0-dev';
+
+    public function __construct(
+        private readonly Connection $connection,
+        private readonly string $shopwareVersion,
+    ) {
     }
 
     /**
@@ -38,7 +50,7 @@ final class StockStateStore
         }
 
         $rows = $this->connection->fetchAllAssociative(
-            self::baseSelect() . ' AND p.id IN (:ids)',
+            $this->baseSelect() . ' AND p.id IN (:ids)',
             self::baseParams() + ['ids' => Uuid::fromHexToBytesList($productIdsHex)],
             ['ids' => ArrayParameterType::BINARY]
         );
@@ -55,11 +67,11 @@ final class StockStateStore
      */
     public function findDiffRows(int $limit): array
     {
-        $sql = self::baseSelect() . '
+        $sql = $this->baseSelect() . '
             AND (
                 s.product_id IS NULL
                 OR s.stock != p.stock
-                OR s.available_stock != COALESCE(p.available_stock, 0)
+                OR s.available_stock != ' . $this->availableStockExpression() . '
             )
             ORDER BY p.id
             LIMIT ' . $limit;
@@ -77,7 +89,7 @@ final class StockStateStore
         $lastIdBytes = null;
 
         while (true) {
-            $sql = self::baseSelect()
+            $sql = $this->baseSelect()
                 . ($lastIdBytes !== null ? ' AND p.id > :lastId' : '')
                 . ' ORDER BY p.id LIMIT ' . $chunkSize;
             $params = self::baseParams() + ($lastIdBytes !== null ? ['lastId' => $lastIdBytes] : []);
@@ -150,7 +162,28 @@ final class StockStateStore
         );
     }
 
-    private static function baseSelect(): string
+    /**
+     * Quelle fuer `availableStock`, abhaengig von der Shopware-Version:
+     *
+     * - ab 6.6: `product.stock`. `available_stock` ist dort nur noch ein
+     *   write-protected Spiegel, den `AvailableStockMirrorSubscriber` (DAL-Writes)
+     *   und `StockStorage::alter()` (Order-Lifecycle) nachziehen. Wer daran
+     *   vorbeischreibt - der klassische Direkt-SQL-ERP-Import, genau die Quelle
+     *   fuer die Reconciliation - laesst den Spiegel veralten. Shopware selbst
+     *   entscheidet Verfuegbarkeit ebenfalls ueber `stock`
+     *   (`StockStorage::updateAvailableFlag()`, `ProductCartProcessor`).
+     * - bis 6.5: `available_stock` ist ein eigenstaendiger Wert (Bestand abzueglich
+     *   offener Bestellungen) und damit die einzig richtige Quelle. NULL bedeutet
+     *   dort "noch nie berechnet" und faellt auf 0 zurueck.
+     */
+    private function availableStockExpression(): string
+    {
+        return version_compare($this->shopwareVersion, self::STOCK_MIRROR_SINCE, '>=')
+            ? 'p.stock'
+            : 'COALESCE(p.available_stock, 0)';
+    }
+
+    private function baseSelect(): string
     {
         return '
             SELECT
@@ -158,7 +191,7 @@ final class StockStateStore
                 COALESCE(p.product_number, \'\') AS product_number,
                 COALESCE(t.name, tp.name) AS name,
                 p.stock AS stock,
-                COALESCE(p.available_stock, 0) AS available_stock,
+                ' . $this->availableStockExpression() . ' AS available_stock,
                 COALESCE(p.is_closeout, parent.is_closeout, 0) AS is_closeout,
                 s.stock AS state_stock,
                 s.available_stock AS state_available_stock,
