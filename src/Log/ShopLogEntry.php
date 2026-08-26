@@ -20,7 +20,10 @@ final class ShopLogEntry implements \JsonSerializable
     {
         return [
             'external_key' => $this->externalKey,
-            'logged_at' => $this->loggedAt->format(\DateTimeInterface::RFC3339),
+            // Mit Mikrosekunden: Monitorio benutzt den Wert als Pull-Cursor
+            // und vergleicht mikrosekundengenau — sekundengenau serialisiert
+            // wuerde jeder Batch innerhalb einer Sekunde erneut uebertragen.
+            'logged_at' => $this->loggedAt->format('Y-m-d\TH:i:s.uP'),
             'level' => $this->level,
             'channel' => $this->channel,
             'message' => $this->message,
