@@ -5,6 +5,16 @@ Alle nennenswerten Änderungen an diesem Plugin werden in dieser Datei dokumenti
 Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 und das Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.4.0] - 2026-08-24
+
+### Hinzugefügt
+
+- Endpunkt `GET /api/_action/emz/monitorio/logs/meta`: meldet Größe (`total_bytes`), Dateianzahl (`file_count`), größte Datei (`largest`, Basename statt Pfad) und jüngste Änderung (`newest_modified_at`) des Log-Verzeichnisses. Erhoben wird ausschließlich über `glob('*.log')` + `filesize()`/`filemtime()` — keine Log-Zeile wird gelesen, kein Parser läuft. Fehlt das Log-Verzeichnis oder ist es leer, kommt `total_bytes: 0` / `file_count: 0` statt eines Fehlers.
+- Vollständige Dateiliste in derselben Antwort (`files`): jede `*.log` des Verzeichnisses mit Basename, Bytes und `modified_at` — ohne Deckelung, ohne Top-N, ohne Stichprobe. `modified_at` ist durchgängig RFC3339 in **UTC**, weil Monitorio die Werte lexikalisch vergleicht, um je Kanal die neueste Datei zu bestimmen; ein wechselnder Offset würde diese Reihenfolge still verdrehen.
+- Kanäle, Rotationsregel und Gruppierung rechnet **Monitorio** aus dieser Liste (`internal/plugins/shop_log/volume_channels.go`), nicht mehr der Companion. Damit entfällt die zuvor auf diesem Branch entwickelte, nie veröffentlichte Aufschlüsselung im Plugin (`channels` mit `rotates`/`remaining_*`) samt ihrer Notbremsen (`truncated`, 50.000 Dateien / 2.000 Kanäle) ersatzlos. Grund ist der Rollout: Das Plugin steht auf jedem Shop einzeln — eine Auslegungsregel hier wäre nur mit einem Rollout über alle Shops zu ändern, und ein Shop mit abweichendem Rotationsformat würde still falsch klassifizieren, ohne dass Monitorio das geradeziehen könnte. In Go liegt dieselbe Regel an einer Stelle und ist mit einem Deploy korrigiert. Der Companion ist wieder reines Messgerät: `glob()` + `filesize()`/`filemtime()`, keine Auslegung.
+- Die dadurch größere Nutzlast ist geprüft und unkritisch: gemessen 5.041 Dateien → 11 ms, 394 KB roh / 14 KB gzip; 50.001 Dateien → 105 ms bei 44 MB Peak, 3,81 MB / 132 KB; 200.002 Dateien → 432 ms bei 176 MB Peak, 15,26 MB / 527 KB. Lauter ähnliche Dateinamen und Zeitstempel komprimieren um Faktor 29, und der Eintrags-Endpunkt desselben Plugins überträgt routinemäßig mehr. Die Laufzeit hängt weiterhin allein an der Anzahl Dateien, nicht an ihren Bytes.
+- Der Endpunkt ist bewusst von `GET /api/_action/emz/monitorio/logs` getrennt und kein `meta`-Block in dessen Antwort: Der dortige Scan liest jede `*.log` ab Byte 0 und parst jede Zeile, läuft bei einem mehrere GB großen Log in den HTTP-Timeout und liefert dann gar keine Antwort — die Größenmeldung wäre also ausgerechnet im kritischen Fall nicht abrufbar. Anlass ist ein realer Vorfall: eine nie rotierte 2,08 GB große `var/log/dev.log` ließ den Log-Abruf über einen Monat lang stumm in den Timeout laufen. Beide Endpunkte sehen dieselbe Dateimenge, damit die gemeldete Größe den Scan erklärt.
+
 ## [1.3.0] - 2026-08-20
 
 ### Hinzugefügt

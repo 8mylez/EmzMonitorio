@@ -16,8 +16,13 @@
             <argument type="service" id="Emz\Monitorio\Log\LogLineParser"/>
         </service>
 
+        <service id="Emz\Monitorio\Log\LogVolumeReader">
+            <argument>%kernel.logs_dir%</argument>
+        </service>
+
         <service id="Emz\Monitorio\Api\LogsApiController" public="true">
             <argument type="service" id="Emz\Monitorio\Log\LogReader"/>
+            <argument type="service" id="Emz\Monitorio\Log\LogVolumeReader"/>
             <call method="setContainer">
                 <argument type="service" id="service_container"/>
             </call>

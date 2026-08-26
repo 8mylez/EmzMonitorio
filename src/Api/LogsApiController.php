@@ -4,6 +4,7 @@ namespace Emz\Monitorio\Api;
 
 use Emz\Monitorio\Log\LogLevel;
 use Emz\Monitorio\Log\LogReader;
+use Emz\Monitorio\Log\LogVolumeReader;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,6 +18,7 @@ class LogsApiController extends AbstractController
 
     public function __construct(
         private readonly LogReader $logReader,
+        private readonly LogVolumeReader $logVolumeReader,
     ) {
     }
 
@@ -34,6 +36,22 @@ class LogsApiController extends AbstractController
         $entries = $this->logReader->readSince($since, $minLevel, $limit);
 
         return new JsonResponse(['data' => $entries]);
+    }
+
+    /**
+     * Groesse des Log-Verzeichnisses - bewusst ein eigener Endpunkt und nicht
+     * Teil von /logs: der Scan dort laeuft bei einem grossen Log in den
+     * HTTP-Timeout, die Groesse waere dann ausgerechnet im kritischen Fall
+     * nicht abrufbar.
+     */
+    #[Route(
+        path: '/api/_action/emz/monitorio/logs/meta',
+        name: 'api.action.emz.monitorio.logs.meta',
+        methods: ['GET']
+    )]
+    public function getLogsMeta(): JsonResponse
+    {
+        return new JsonResponse(['data' => $this->logVolumeReader->read()]);
     }
 
     private function parseSince(mixed $raw): \DateTimeImmutable
