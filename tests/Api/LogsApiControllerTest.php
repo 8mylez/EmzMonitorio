@@ -50,6 +50,13 @@ final class LogsApiControllerTest extends TestCase
                         'modified_at' => '2026-08-17T20:53:21+00:00',
                     ],
                     'newest_modified_at' => '2026-08-17T20:53:21+00:00',
+                    'files' => [
+                        [
+                            'name' => 'dev.log',
+                            'bytes' => 300,
+                            'modified_at' => '2026-08-17T20:53:21+00:00',
+                        ],
+                    ],
                 ],
             ],
             json_decode((string) $response->getContent(), true)

@@ -196,24 +196,63 @@ Liest Shop-Log-Einträge aus. Optionale Query-Parameter: `since` (ISO-8601-Zeitp
 
 ### GET /api/_action/emz/monitorio/logs/meta
 
-Meldet Größe, Dateianzahl und größte Datei des Log-Verzeichnisses (`%kernel.logs_dir%`), ohne eine einzige Log-Zeile zu lesen — nur `filesize()` und `filemtime()` je Datei. Der Aufwand hängt an der Anzahl Dateien, nicht an ihren Bytes; die Antwort kommt deshalb auch dann in Millisekunden, wenn `/logs` an einem mehrere GB großen Log in den HTTP-Timeout läuft. Genau dafür ist der Endpunkt getrennt: Als `meta`-Block in der `/logs`-Antwort wäre die Größe ausgerechnet im kritischen Fall nicht abrufbar.
+Meldet Größe, Dateianzahl, größte Datei und die vollständige Dateiliste des Log-Verzeichnisses (`%kernel.logs_dir%`), ohne eine einzige Log-Zeile zu lesen — nur `filesize()` und `filemtime()` je Datei. Der Aufwand hängt an der Anzahl Dateien, nicht an ihren Bytes; die Antwort kommt deshalb auch dann in Millisekunden, wenn `/logs` an einem mehrere GB großen Log in den HTTP-Timeout läuft. Genau dafür ist der Endpunkt getrennt: Als `meta`-Block in der `/logs`-Antwort wäre die Größe ausgerechnet im kritischen Fall nicht abrufbar.
 
-Erfasst wird dieselbe Dateimenge wie bei `/logs` (`*.log` im Log-Verzeichnis), damit die gemeldete Größe den dortigen Scan erklärt. Keine Query-Parameter. `name` ist der Basename, nicht der Pfad. Existiert das Log-Verzeichnis nicht oder enthält es keine `*.log`-Datei, kommt `total_bytes: 0` und `file_count: 0` mit `largest: null` und `newest_modified_at: null` — kein Fehler.
+Erfasst wird dieselbe Dateimenge wie bei `/logs` (`*.log` im Log-Verzeichnis), damit die gemeldete Größe den dortigen Scan erklärt. Keine Query-Parameter. `name` ist überall der Basename, nie der Pfad — Serverpfade gehören nicht in eine Monitoring-Antwort. Existiert das Log-Verzeichnis nicht oder enthält es keine `*.log`-Datei, kommt `total_bytes: 0` und `file_count: 0` mit `largest: null`, `newest_modified_at: null` und `files: []` — kein Fehler.
 
 ```json
 {
     "data": {
-        "total_bytes": 2233382912,
-        "file_count": 2,
+        "total_bytes": 175671101,
+        "file_count": 4,
         "largest": {
             "name": "dev.log",
-            "bytes": 2233381348,
-            "modified_at": "2026-08-24T11:33:21+00:00"
+            "bytes": 175000000,
+            "modified_at": "2026-08-26T06:07:27+00:00"
         },
-        "newest_modified_at": "2026-08-24T11:33:21+00:00"
+        "newest_modified_at": "2026-08-26T06:07:27+00:00",
+        "files": [
+            {
+                "name": "dev.log",
+                "bytes": 175000000,
+                "modified_at": "2026-08-26T06:07:27+00:00"
+            },
+            {
+                "name": "prod-2026-08-11.log",
+                "bytes": 18342,
+                "modified_at": "2026-08-11T23:59:12+00:00"
+            }
+        ]
     }
 }
 ```
+
+#### Die Aufschlüsselung passiert in Monitorio
+
+`files` enthält **jede** Datei des Verzeichnisses mit Name, Bytes und Änderungszeit: kein Top-N, keine Stichprobe, keine Deckelung. Kanäle, Rotationsregel (`prod-2026-08-11.log` → Kanal `prod`) und Gruppierung rechnet Monitorio aus dieser Liste (`internal/plugins/shop_log/volume_channels.go`). Der Companion misst und legt nicht aus.
+
+Der Grund ist der Rollout: Das Plugin steht auf jedem Shop einzeln. Eine Auslegungsregel hier wäre nur mit einem Rollout über alle Shops zu ändern, und ein Shop mit abweichendem Rotationsformat würde still falsch klassifizieren, ohne dass Monitorio das geradeziehen könnte. In Go liegt dieselbe Regel an einer Stelle und ist mit einem Deploy korrigiert.
+
+Daraus folgen zwei Zusicherungen, auf die sich die Go-Seite verlässt:
+
+- **Vollständigkeit.** Jede von `glob('*.log')` gefundene und statbare Datei taucht genau einmal in `files` auf, und `file_count` ist deren Anzahl. Fehlt eine Datei, rechnet Monitorio einen Kanal zu klein, ohne es merken zu können. Nicht statbare Einträge (zwischen `glob()` und `stat()` wegrotiert) werden übersprungen und zählen dann in keinem der Werte mit.
+- **`modified_at` ist RFC3339 in UTC.** Monitorio vergleicht die Werte lexikalisch, um je Kanal die neueste Datei zu bestimmen; ein wechselnder Offset würde diese Reihenfolge still verdrehen.
+
+Die Reihenfolge von `files` ist die von `glob()` (alphabetisch) und kein Teil des Vertrags — Monitorio sortiert selbst, worauf es ankommt. `largest` und `newest_modified_at` bleiben trotz Redundanz zu `files` in der Antwort: Sie sind die Werte, die ein Alarm ohne Vorverarbeitung braucht.
+
+#### Nutzlast und Laufzeit
+
+Ohne Deckelung wächst die Antwort mit der Dateizahl. Gemessen (leere Dateien, bester von drei Läufen, lokal im ddev-Container):
+
+| Verzeichnis | Laufzeit | Peak | Antwort roh | gzip |
+|---|---|---|---|---|
+| 5.041 Dateien | 11 ms | 6 MB | 394 KB | 14 KB |
+| 50.001 Dateien | 105 ms | 44 MB | 3,81 MB | 132 KB |
+| 200.002 Dateien | 432 ms | 176 MB | 15,26 MB | 527 KB |
+
+Die Dateigröße kostet nichts: Die Laufzeit hängt allein an der Anzahl Dateien. Die Nutzlast ist unkritisch, weil lauter ähnliche Dateinamen und Zeitstempel um **Faktor 29** komprimieren — bei 50.001 Dateien bleiben 132 KB über die Leitung, weniger als der Eintrags-Endpunkt desselben Plugins routinemäßig überträgt.
+
+Die verbleibende Grenze ist der Speicher: 176 MB Peak bei 200.002 Dateien, bei einem `memory_limit` von 1 GB im getesteten Container. Ein Log-Verzeichnis dieser Größenordnung ist unabhängig davon ein Befund — ein realer Shop hat eine zwei- bis dreistellige Zahl Dateien und liegt damit weit unter der ersten Tabellenzeile.
 
 ### GET /api/monitorio/message-queue
 
