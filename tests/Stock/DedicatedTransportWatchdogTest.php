@@ -17,7 +17,7 @@ final class DedicatedTransportWatchdogTest extends StockDbTestCase
      */
     private const NOW = '2026-01-01 12:00:00';
 
-    private const MARKER_KEY = 'EmzMonitorio.watchdogStockTransportNotifiedAt';
+    private const MARKER_KEY = DedicatedTransportWatchdog::NOTIFIED_AT_KEY;
 
     private \ArrayObject $configStore;
 
@@ -137,6 +137,47 @@ final class DedicatedTransportWatchdogTest extends StockDbTestCase
         $this->watchdog(enabled: true)->check($this->now());
 
         self::assertArrayNotHasKey(self::MARKER_KEY, $this->configStore->getArrayCopy());
+    }
+
+    public function testClearsMarkerWellBelowTheThreshold(): void
+    {
+        $this->insertMessage(StockPushConfig::DEDICATED_TRANSPORT_NAME, ageSeconds: 200);
+        $this->configStore[self::MARKER_KEY] = $this->now()->getTimestamp() - 300;
+
+        $this->watchdog(enabled: true)->check($this->now());
+
+        self::assertArrayNotHasKey(self::MARKER_KEY, $this->configStore->getArrayCopy());
+    }
+
+    /**
+     * Hysterese: Pendelt das Alter um die Warnschwelle, darf der Marker im
+     * Band dazwischen nicht fallen - sonst gaebe es je Pendelzyklus eine neue
+     * Notification.
+     */
+    public function testKeepsMarkerInsideTheHysteresisBand(): void
+    {
+        $this->insertMessage(StockPushConfig::DEDICATED_TRANSPORT_NAME, ageSeconds: 400);
+        $marker = $this->now()->getTimestamp() - 300;
+        $this->configStore[self::MARKER_KEY] = $marker;
+        $logger = $this->loggerSpy();
+
+        $this->watchdog(enabled: true, logger: $logger)->check($this->now());
+
+        self::assertSame($marker, $this->configStore[self::MARKER_KEY] ?? null);
+        self::assertSame([], $logger->records);
+    }
+
+    public function testDoesNotRenotifyAfterABriefDipIntoTheHysteresisBand(): void
+    {
+        $this->insertMessage(StockPushConfig::DEDICATED_TRANSPORT_NAME, ageSeconds: 700);
+        // Vorherige Notification liegt kurz zurueck; dazwischen fiel das Alter
+        // einmal ins Hysterese-Band (kein eigener Check noetig - der Marker
+        // bleibt dort ohnehin stehen, siehe Test darueber).
+        $this->configStore[self::MARKER_KEY] = $this->now()->getTimestamp() - 900;
+        $notifications = $this->createMock(EntityRepository::class);
+        $notifications->expects(self::never())->method('create');
+
+        $this->watchdog(enabled: true, notifications: $notifications)->check($this->now());
     }
 
     /**

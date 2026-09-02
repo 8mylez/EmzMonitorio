@@ -1,6 +1,6 @@
 {
     "name": "emz/monitorio",
-    "description": "Shopware 6 plugin that forwards selected Monolog log records and custom events to a Monitorio ingest endpoint.",
+    "description": "Monitorio companion plugin for Shopware 6: read-only monitoring endpoints polled via the Admin API (shop logs, log volume, message queue backlog, disk space), JS error tracking loader for the storefront, and stock event push to the Monitorio ingest.",
     "type": "shopware-platform-plugin",
     "version": "1.6.0",
     "license": "MIT",
@@ -34,8 +34,8 @@
         },
         "copyright": "(c) by 8mylez GmbH",
         "description": {
-            "de-DE": "Leitet Monolog-Logs und benutzerdefinierte Events regelbasiert an Monitorio weiter.",
-            "en-GB": "Forwards Monolog logs and custom events to Monitorio based on configurable rules."
+            "de-DE": "Monitorio-Companion: Monitoring-Endpunkte (Logs, Log-Volumen, Queue-Backlog, Speicherplatz), JS-Error-Tracking-Loader und Lagerbestand-Push.",
+            "en-GB": "Monitorio companion: monitoring endpoints (logs, log volume, queue backlog, disk space), JS error tracking loader and stock push."
         },
         "manufacturerLink": {
             "de-DE": "https://store.shopware.com/8mylez.html",

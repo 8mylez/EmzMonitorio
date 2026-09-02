@@ -4,6 +4,7 @@ namespace Emz\Monitorio;
 
 use Doctrine\DBAL\Connection;
 use Emz\Monitorio\Config\MonitorioBaseUrl;
+use Emz\Monitorio\Stock\DedicatedTransportWatchdog;
 use Shopware\Core\Framework\Plugin;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Shopware\Core\Framework\Plugin\Context\ActivateContext;
@@ -45,6 +46,13 @@ class EmzMonitorio extends Plugin
         $connection = $this->container->get(Connection::class);
         $connection->executeStatement('DROP TABLE IF EXISTS `emz_monitorio_stock_outbox`');
         $connection->executeStatement('DROP TABLE IF EXISTS `emz_monitorio_stock_state`');
+
+        // Der Watchdog-Marker liegt bewusst ausserhalb von config.xml und wird
+        // von Shopwares Config-Cleanup deshalb nicht erfasst.
+        $connection->executeStatement(
+            'DELETE FROM `system_config` WHERE `configuration_key` = :key',
+            ['key' => DedicatedTransportWatchdog::NOTIFIED_AT_KEY]
+        );
     }
 
     public function activate(ActivateContext $activateContext): void

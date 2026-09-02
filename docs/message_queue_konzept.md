@@ -20,7 +20,7 @@ Branch: `feature/EMZ-message-queue-endpoint`
 ## Ziel-Umgebung
 
 - Referenz-Shop: Shopware 6.7.8.2 (demo-1, ddev), DBAL 4.4.3, Symfony 7.4
-- Plugin-Kompatibilität laut `composer.json`: `shopware/core >= 6.5.0.0`, PHP >= 8.1
+- Plugin-Kompatibilität laut `composer.json`: `shopware/core >= 6.5.7.0` (seit 1.6.0 — der Stock-Push nutzt den `low_priority`-Transport; zur Zeit dieses Konzepts galt noch `>= 6.5.0.0`), PHP >= 8.1
   → Code muss DBAL 3 **und** 4 vertragen; `Symfony\Component\Routing\Annotation\Route`
   verwenden (wie Bestand — `Attribute\Route` existiert erst ab Symfony 6.4, SW 6.5 nutzt 6.2/6.3)
 - Messenger-Transport im Referenz-Shop: Doctrine (Default, kein `MESSENGER_TRANSPORT_DSN` gesetzt);

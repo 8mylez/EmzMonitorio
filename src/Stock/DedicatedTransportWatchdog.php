@@ -38,14 +38,24 @@ final class DedicatedTransportWatchdog
     private const RENOTIFY_AFTER_SECONDS = 86400;
 
     /**
+     * Der Marker faellt erst deutlich UNTERHALB der Warnschwelle (Hysterese):
+     * pendelt das Alter der aeltesten Message um die Schwelle (Worker laeuft,
+     * kommt aber knapp nicht hinterher), wuerde sonst jeder Unter-Schwelle-Lauf
+     * den Marker loeschen und jeder Ueber-Schwelle-Lauf neu notifizieren.
+     */
+    private const CLEAR_BELOW_SECONDS = 300;
+
+    /**
      * Unix-Timestamp der letzten Admin-Notification. Absichtlich persistiert
      * (system_config) statt als Zeitfenster gerechnet: die Task-Laeufe koennen
      * beliebig weit auseinanderliegen (konfigurierbares Intervall, verzoegerter
      * Scheduler - genau im Staufall), ein Fenster wuerde dann uebersprungen
      * und es kaeme NIE eine Notification. Geschrieben wird nur bei
-     * Zustandswechseln, nicht bei jedem Lauf.
+     * Zustandswechseln, nicht bei jedem Lauf. Public, damit uninstall() die
+     * verwaiste Row entfernen kann - der Key liegt bewusst ausserhalb von
+     * config.xml und wird von Shopwares Config-Cleanup nicht erfasst.
      */
-    private const NOTIFIED_AT_KEY = 'EmzMonitorio.watchdogStockTransportNotifiedAt';
+    public const NOTIFIED_AT_KEY = 'EmzMonitorio.watchdogStockTransportNotifiedAt';
 
     public function __construct(
         private readonly Connection $connection,
@@ -94,7 +104,9 @@ final class DedicatedTransportWatchdog
         $ageSeconds = $now->getTimestamp() - $oldestAt->getTimestamp();
 
         if ($ageSeconds < self::STALE_AFTER_SECONDS) {
-            $this->clearNotifiedMarker();
+            if ($ageSeconds < self::CLEAR_BELOW_SECONDS) {
+                $this->clearNotifiedMarker();
+            }
 
             return;
         }
