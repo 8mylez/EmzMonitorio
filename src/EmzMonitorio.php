@@ -5,6 +5,7 @@ namespace Emz\Monitorio;
 use Doctrine\DBAL\Connection;
 use Emz\Monitorio\Config\MonitorioBaseUrl;
 use Shopware\Core\Framework\Plugin;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Shopware\Core\Framework\Plugin\Context\ActivateContext;
 use Shopware\Core\Framework\Plugin\Context\DeactivateContext;
 use Shopware\Core\Framework\Plugin\Context\InstallContext;
@@ -14,6 +15,19 @@ use Shopware\Core\System\SystemConfig\SystemConfigService;
 
 class EmzMonitorio extends Plugin
 {
+    /**
+     * Laedt Resources/config/packages/*.yaml (den dedizierten Messenger-
+     * Transport `emz_monitorio`) in die Container-Konfiguration. Anders als
+     * bei den Core-Bundles passiert das fuer Plugins NICHT automatisch -
+     * buildDefaultConfig() rufen nur Framework und Profiling selbst auf.
+     */
+    public function build(ContainerBuilder $container): void
+    {
+        parent::build($container);
+
+        $this->buildDefaultConfig($container);
+    }
+
     public function install(InstallContext $installContext): void
     {
         // Do stuff such as creating a new payment method
