@@ -159,6 +159,33 @@ final class LogReaderTest extends TestCase
         self::assertSame('after', $entries[1]->message);
     }
 
+    public function testTruncationDoesNotBreakMultibyteCharacters(): void
+    {
+        // Der 32-KiB-Schnitt ist byte-genau; die Prefix-Laenge wird so
+        // justiert, dass er garantiert MITTEN in einer 2-Byte-Sequenz landet.
+        // Ohne Reparatur waere die gekappte Zeile invalides UTF-8, die
+        // /u-Regex des Parsers wuerde sie komplett verwerfen.
+        $prefix = '[2026-04-26T10:00:01+00:00] app.ERROR: ';
+        if ((32767 - \strlen($prefix)) % 2 === 0) {
+            $prefix .= 'x';
+        }
+
+        file_put_contents($this->logDir . '/prod.log', implode("\n", [
+            $prefix . str_repeat('ä', 20000) . ' [] []',
+            '[2026-04-26T10:00:02+00:00] app.ERROR: after [] []',
+            '',
+        ]));
+
+        $reader = new LogReader($this->logDir, new LogLineParser());
+
+        $entries = $reader->readSince(new \DateTimeImmutable('2026-04-26T10:00:00+00:00'), 'DEBUG');
+
+        self::assertCount(2, $entries);
+        self::assertTrue(mb_check_encoding($entries[0]->message, 'UTF-8'));
+        self::assertSame('ä', mb_substr($entries[0]->message, -1));
+        self::assertSame('after', $entries[1]->message);
+    }
+
     public function testBinarySearchFindsWindowAtEndOfLargeFile(): void
     {
         $base = new \DateTimeImmutable('2026-04-26T00:00:00+00:00');

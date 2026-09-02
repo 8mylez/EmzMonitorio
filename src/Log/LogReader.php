@@ -252,6 +252,15 @@ final class LogReader
         // Zeilenende mit, war die Zeile laenger.
         if (!str_ends_with($line, "\n") && \strlen($line) === self::MAX_LINE_BYTES - 1) {
             $this->skipRestOfLine($handle);
+
+            // Der byte-genaue Schnitt kann eine UTF-8-Sequenz zerteilen; die
+            // /u-Regex des Parsers wuerde die Zeile dann KOMPLETT verwerfen
+            // statt sie gekuerzt zu liefern. Hoechstens die bis zu 3 Bytes
+            // einer angerissenen Sequenz entfernen - eine schon vorher
+            // invalide Zeile bleibt (wie beim frueheren Vollscan) unparsebar.
+            for ($i = 0; $i < 4 && $line !== '' && !mb_check_encoding($line, 'UTF-8'); ++$i) {
+                $line = substr($line, 0, -1);
+            }
         }
 
         return $line;
