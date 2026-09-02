@@ -1,18 +1,18 @@
 # EmzMonitorio
 
-Companion-Plugin für Monitorio. Leitet ausgewählte Monolog-Log-Records und benutzerdefinierte Events regelbasiert an einen Monitorio-Ingest-Endpunkt weiter und stellt darüber hinaus Read-only-Monitoring-Endpunkte über die Shopware-Admin-API bereit, die Monitorio pro Shop abfragt.
+Companion-Plugin für Monitorio. Stellt Read-only-Monitoring-Endpunkte über die Shopware-Admin-API bereit, die Monitorio pro Shop pollt (Shop-Logs, Log-Volumen, Message-Queue-Backlog, freier Speicherplatz), bindet optional den Loader für das JS Error Tracking in die Storefront ein und pusht Bestands-Events an den Monitorio-Stock-Ingest.
 
 ## Funktionsumfang
 
-- **Log-Forwarding:** Ausgewählte Monolog-Log-Records und benutzerdefinierte Events werden regelbasiert an einen Monitorio-Ingest-Endpunkt weitergeleitet.
-- **Monitoring-Endpunkte:** Endpunkte in der Admin-API liefern Kennzahlen, die Monitorio pro Shop pollt (freier Speicherplatz, Shop-Logs, Message-Queue-Backlog).
+- **Monitoring-Endpunkte (Pull):** Endpunkte in der Admin-API liefern Kennzahlen, die Monitorio pro Shop pollt — Shop-Log-Einträge (`/logs`), Log-Volumen (`/logs/meta`), Message-Queue-Backlog und freier Speicherplatz. Das Plugin pusht keine Logs und hängt keinen Handler in den Monolog-Schreibpfad — der Log-Abruf ist rein lesend und passiert nur beim Poll.
 - **JS Error Tracking:** Optional bindet das Plugin im Storefront-`<head>` den Loader für das von Monitorio gehostete Tracking-Snippet ein.
 - **Lagerbestand-Push:** Pusht Bestands-Events (Bestand vorher/nachher je Produkt) als Batches an den Monitorio-Stock-Ingest — Grundlage für Back-in-Stock-Alarme und Out-of-Stock-Reports. Details unter [Lagerbestand-Push](#lagerbestand-push-stock-monitoring).
 
 ## Voraussetzungen
 
-- Shopware 6.5.0.0 oder neuer
+- Shopware 6.5.7.0 oder neuer (der Lagerbestand-Push nutzt den `low_priority`-Transport, den es erst ab 6.5.7 gibt)
 - PHP 8.1 oder neuer
+- Für den Lagerbestand-Push: ein laufender Messenger-Worker, der `async`, `low_priority` und `scheduler_shopware` konsumiert (`bin/console messenger:consume async low_priority scheduler_shopware` bzw. das Betriebs-Setup des Shops — das Shopware-Standard-Setup; der Admin-Worker erfüllt es ab Werk)
 
 ## Installation
 
@@ -33,6 +33,7 @@ Die Einstellungen stehen im Admin unter **Erweiterungen > Meine Erweiterungen > 
 | JS Error Tracking aktivieren | `EmzMonitorio.config.jsErrorTrackingEnabled` | aus |
 | Shop-Token (öffentlich) | `EmzMonitorio.config.shopToken` | leer |
 | Ingest-Token (geheim) | `EmzMonitorio.config.ingestToken` | leer → Lagerbestand-Push aus |
+| Dedizierten Queue-Transport verwenden | `EmzMonitorio.config.useDedicatedTransport` | aus → Stock-Messages laufen über `low_priority`; Details unter [Optional: dedizierter Queue-Transport](#optional-dedizierter-queue-transport) |
 
 **Projekt-ID** und **Shop-Token** stehen in Monitorio unter „Einrichtung" im Einbau-Code. Beide sind für das JS Error Tracking Pflicht — das Snippet bricht ohne eines von beiden still ab, deshalb liefert das Plugin dann gar nichts aus. Das Shop-Token ist kein Geheimnis, es steht im Quelltext jeder Shopseite; die Zuordnung schützt Monitorio zusätzlich über einen Origin-Check gegen die registrierten Shop-Domains. Das **Ingest-Token** dagegen ist ein Server-Geheimnis für den Lagerbestand-Push — die beiden dürfen nie vertauscht werden, Details im Stock-Abschnitt unten.
 
@@ -53,7 +54,7 @@ bin/console cache:clear
 
 Ist die Einstellung aktiv **und** sind Projekt-ID und Shop-Token hinterlegt, hängt das Plugin einen Loader in den Storefront-`<head>` — vor Favicon, Title und Stylesheets, damit auch frühe Fehler erfasst werden. Fehlt eines davon, wird nichts ausgeliefert.
 
-Der Loader setzt `window.__monitorio` und lädt anschließend das Snippet asynchron von `https://app.monitorio.de/t/v1.js`. Der komplette Block liegt in einem `try/catch`; ein Fehler darin bleibt folgenlos für die Storefront.
+Der Loader setzt `window.__monitorio` und lädt anschließend das Snippet asynchron von der konfigurierten Monitorio-URL (`{monitorioBaseUrl}/t/v1.js`, Default `https://app.monitorio.de`). Ein `preconnect`-Hint auf dieselbe Origin wärmt DNS/TLS vor, bevor das Snippet angefordert wird. Der komplette Block liegt in einem `try/catch`; ein Fehler darin bleibt folgenlos für die Storefront.
 
 Der Loader lädt mit `crossOrigin="anonymous"`, damit keine Cookies an den App-Host mitgehen. Das setzt voraus, dass der Endpunkt `Access-Control-Allow-Origin` sendet und den Content-Type `application/javascript` — bei `text/html` blockiert der Browser das Script wegen `X-Content-Type-Options: nosniff`.
 
@@ -105,7 +106,7 @@ Das Snippet sammelt fünf Sekunden lang und schickt dann gebündelt; im Netzwerk
 | `frontend.account.` | `account` | Kundenkonto inkl. Login und eigenständiger Registrierung |
 | alle übrigen | `storefront` | Startseite, Kategorien, Detailseiten, Suche, CMS |
 
-Das Snippet selbst hostet und versioniert Monitorio; es steckt bewusst **nicht** im Plugin, damit Snippet-Updates ohne Plugin-Release ausgerollt werden können. Die URL liegt als Konstante `JsErrorTrackingConfigProvider::SNIPPET_URL` im Code.
+Das Snippet selbst hostet und versioniert Monitorio; es steckt bewusst **nicht** im Plugin, damit Snippet-Updates ohne Plugin-Release ausgerollt werden können. Der Pfad liegt als Konstante `JsErrorTrackingConfigProvider::SNIPPET_PATH` im Code; der Host kommt aus der gemeinsamen Monitorio-URL.
 
 Eine Änderung der Einstellung greift nach `bin/console cache:clear`.
 
@@ -124,7 +125,9 @@ Der Shop pusht Bestands-**Zustände** (Bestand vorher/nachher je Leaf-Produkt, a
    bin/console cache:clear
    ```
 
-3. Baseline-Vollimport anstoßen (initialisiert Monitorio und die lokale Zustandstabelle, löst nie Alarme aus; jederzeit manuell wiederholbar):
+3. Sicherstellen, dass der Messenger-Worker `low_priority` mitkonsumiert (siehe [Voraussetzungen](#voraussetzungen)) — sonst bleiben die Stock-Messages liegen.
+
+4. Baseline-Vollimport anstoßen (initialisiert Monitorio und die lokale Zustandstabelle, löst nie Alarme aus; jederzeit manuell wiederholbar):
 
    ```bash
    bin/console emz:monitorio:stock:baseline
@@ -194,12 +197,14 @@ Liefert freien und gesamten Speicherplatz des Root-Dateisystems (`/`) in Bytes.
 
 Liest Shop-Log-Einträge aus. Optionale Query-Parameter: `since` (ISO-8601-Zeitpunkt, Default: letzte Stunde), `min_level` (Default: `WARNING`) und `limit` (Default und Maximum: `1000`).
 
+Der Abruf ist auf große Logs ausgelegt: Dateien, deren letzte Änderung vor `since` liegt, werden ungelesen übersprungen (eine rotierte GB-Datei kostet einen stat-Call), und in großen Dateien springt der Reader per Bisektion an den Fensterstart, statt ab Byte 0 zu scannen — auch ein mehrere GB großes, aktives Log antwortet in Millisekunden. Überlange Zeilen (> 32 KiB, etwa riesige Stack-Traces im Context) werden gekürzt übernommen statt komplett geladen. Gelesen wird aufsteigend nach Datei-Änderungszeit: greift das `limit`, überleben die **ältesten** Einträge — der `since`-Cursor des nächsten Polls holt den Rest lückenlos nach. `external_key` ist ein stabiler Hash über Zeitpunkt, Kanal, Level, Message und Fundstelle (Duplikat-Erkennung beim Poll); `logged_at` kommt mikrosekundengenau, weil Monitorio den Wert als Pull-Cursor benutzt.
+
 ```json
 {
     "data": [
         {
-            "external_key": "shop-1",
-            "logged_at": "2026-07-09T11:32:45+00:00",
+            "external_key": "9c4f2a7d1b8e35a6c0d94e17f2b86c31a5d7e90f4b823c6d1e0a9f57b4c28d63",
+            "logged_at": "2026-07-09T11:32:45.418239+00:00",
             "level": "ERROR",
             "channel": "app",
             "message": "Uncaught exception ...",
@@ -213,7 +218,7 @@ Liest Shop-Log-Einträge aus. Optionale Query-Parameter: `since` (ISO-8601-Zeitp
 
 ### GET /api/_action/emz/monitorio/logs/meta
 
-Meldet Größe, Dateianzahl, größte Datei und die vollständige Dateiliste des Log-Verzeichnisses (`%kernel.logs_dir%`), ohne eine einzige Log-Zeile zu lesen — nur `filesize()` und `filemtime()` je Datei. Der Aufwand hängt an der Anzahl Dateien, nicht an ihren Bytes; die Antwort kommt deshalb auch dann in Millisekunden, wenn `/logs` an einem mehrere GB großen Log in den HTTP-Timeout läuft. Genau dafür ist der Endpunkt getrennt: Als `meta`-Block in der `/logs`-Antwort wäre die Größe ausgerechnet im kritischen Fall nicht abrufbar.
+Meldet Größe, Dateianzahl, größte Datei und die vollständige Dateiliste des Log-Verzeichnisses (`%kernel.logs_dir%`), ohne eine einzige Log-Zeile zu lesen — nur `filesize()` und `filemtime()` je Datei. Der Aufwand hängt an der Anzahl Dateien, nicht an ihren Bytes. Der Endpunkt bleibt bewusst von `/logs` getrennt: Die Größenmeldung hängt so unter keinen Umständen am Eintrags-Scan (bis Version 1.5 lief der bei einem mehrere GB großen Log in den HTTP-Timeout; seit 1.6 liest `/logs` gezielt ab dem angefragten Zeitfenster, die Trennung bleibt trotzdem — ein Messgerät, das nichts liest, kann nicht vom Log-Inhalt überrascht werden).
 
 Erfasst wird dieselbe Dateimenge wie bei `/logs` (`*.log` im Log-Verzeichnis), damit die gemeldete Größe den dortigen Scan erklärt. Keine Query-Parameter. `name` ist überall der Basename, nie der Pfad — Serverpfade gehören nicht in eine Monitoring-Antwort. Existiert das Log-Verzeichnis nicht oder enthält es keine `*.log`-Datei, kommt `total_bytes: 0` und `file_count: 0` mit `largest: null`, `newest_modified_at: null` und `files: []` — kein Fehler.
 
@@ -279,13 +284,14 @@ Die verbleibende Grenze ist der Speicher: 176 MB Peak bei 200.002 Dateien, bei e
 
 **Request:** Kein Request-Body, keine Query-Parameter.
 
-**Response** (`200`, `application/json`): Ein JSON-Array mit einem Objekt pro Transport. `name` ist der Transport-Name (wie in `messenger:stats`, z. B. `async`, `low_priority`, `failed`), `size` die Anzahl wartender Messages als Integer. Transports ohne wartende Messages erscheinen mit `size: 0`.
+**Response** (`200`, `application/json`): Ein JSON-Array mit einem Objekt pro Transport. `name` ist der Transport-Name (wie in `messenger:stats`, z. B. `async`, `low_priority`, `failed`), `size` die Anzahl wartender Messages als Integer. Transports ohne wartende Messages erscheinen mit `size: 0`. Ab Plugin-Version 1.6 taucht auch der plugineigene Transport `emz_monitorio` auf — mit `size: 0`, solange der [dedizierte Queue-Transport](#optional-dedizierter-queue-transport) nicht aktiviert ist.
 
 ```json
 [
     { "name": "failed", "size": 0 },
     { "name": "async", "size": 1234 },
-    { "name": "low_priority", "size": 5 }
+    { "name": "low_priority", "size": 5 },
+    { "name": "emz_monitorio", "size": 0 }
 ]
 ```
 
