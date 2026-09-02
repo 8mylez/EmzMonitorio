@@ -93,6 +93,7 @@
         <service id="Emz\Monitorio\Stock\DedicatedTransportWatchdog">
             <argument type="service" id="Doctrine\DBAL\Connection"/>
             <argument type="service" id="Emz\Monitorio\Stock\StockPushConfig"/>
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
             <argument type="service" id="monolog.logger"/>
             <argument type="service" id="notification.repository" on-invalid="null"/>
         </service>

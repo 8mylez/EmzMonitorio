@@ -67,7 +67,12 @@ final class StockReconciliationTaskHandlerTest extends TestCase
             new NullLogger(),
             $bus,
             $config,
-            new DedicatedTransportWatchdog($connection, $config, new NullLogger())
+            new DedicatedTransportWatchdog(
+                $connection,
+                $config,
+                $this->createMock(SystemConfigService::class),
+                new NullLogger()
+            )
         );
     }
 

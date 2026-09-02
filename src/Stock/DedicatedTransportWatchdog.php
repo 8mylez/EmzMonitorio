@@ -7,6 +7,7 @@ use Psr\Log\LoggerInterface;
 use Shopware\Core\Framework\Context;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\Uuid\Uuid;
+use Shopware\Core\System\SystemConfig\SystemConfigService;
 
 /**
  * Erkennt den gefaehrlichsten Fehlgriff des dedizierten Transports: Schalter
@@ -24,22 +25,32 @@ use Shopware\Core\Framework\Uuid\Uuid;
 final class DedicatedTransportWatchdog
 {
     /**
-     * Zwei Reconciliation-Intervalle: eine Message, die so lange liegt, wird
-     * von keinem Worker abgeholt (Symfony-Retries liegen im Sekundenbereich).
+     * Zwei Reconciliation-Intervalle (beim 300-s-Default): eine Message, die
+     * so lange liegt, wird von keinem Worker abgeholt (Symfony-Retries liegen
+     * im Sekundenbereich).
      */
     private const STALE_AFTER_SECONDS = 600;
 
     /**
-     * Admin-Notification nur im Uebergangsfenster nach dem Schwellwert (etwa
-     * ein Task-Lauf breit) - die Log-Warnung kommt bei jedem Lauf, aber das
-     * Notification-Center soll nicht alle 5 Minuten einen neuen Eintrag
-     * bekommen, solange der Zustand anhaelt.
+     * Haelt der Zustand an, wird fruehestens nach dieser Zeit erneut
+     * notifiziert - die Log-Warnung kommt weiterhin bei jedem Lauf.
      */
-    private const NOTIFY_WINDOW_SECONDS = 450;
+    private const RENOTIFY_AFTER_SECONDS = 86400;
+
+    /**
+     * Unix-Timestamp der letzten Admin-Notification. Absichtlich persistiert
+     * (system_config) statt als Zeitfenster gerechnet: die Task-Laeufe koennen
+     * beliebig weit auseinanderliegen (konfigurierbares Intervall, verzoegerter
+     * Scheduler - genau im Staufall), ein Fenster wuerde dann uebersprungen
+     * und es kaeme NIE eine Notification. Geschrieben wird nur bei
+     * Zustandswechseln, nicht bei jedem Lauf.
+     */
+    private const NOTIFIED_AT_KEY = 'EmzMonitorio.watchdogStockTransportNotifiedAt';
 
     public function __construct(
         private readonly Connection $connection,
         private readonly StockPushConfig $config,
+        private readonly SystemConfigService $systemConfigService,
         private readonly LoggerInterface $logger,
         private readonly ?EntityRepository $notificationRepository = null,
     ) {
@@ -68,12 +79,23 @@ final class DedicatedTransportWatchdog
         }
 
         if (!\is_string($oldest) || $oldest === '') {
+            $this->clearNotifiedMarker();
+
             return;
         }
 
-        $ageSeconds = $now->getTimestamp() - (new \DateTimeImmutable($oldest))->getTimestamp();
+        // Der Doctrine-Transport schreibt created_at in UTC (Symfony haengt
+        // dort explizit new \DateTimeImmutable('UTC') an). Ohne explizite Zone
+        // wuerde PHP den TZ-losen DATETIME-String in date.timezone
+        // interpretieren und das Alter um den Offset verfaelschen: oestlich
+        // von UTC Dauer-Warnung fuer frische Messages, westlich schlaegt der
+        // Watchdog nie an.
+        $oldestAt = new \DateTimeImmutable($oldest, new \DateTimeZone('UTC'));
+        $ageSeconds = $now->getTimestamp() - $oldestAt->getTimestamp();
 
         if ($ageSeconds < self::STALE_AFTER_SECONDS) {
+            $this->clearNotifiedMarker();
+
             return;
         }
 
@@ -83,8 +105,28 @@ final class DedicatedTransportWatchdog
             . 'Is a worker running? (bin/console messenger:consume ' . StockPushConfig::DEDICATED_TRANSPORT_NAME . ')'
         );
 
-        if ($ageSeconds < self::STALE_AFTER_SECONDS + self::NOTIFY_WINDOW_SECONDS) {
-            $this->notifyAdmin();
+        $notifiedAt = $this->systemConfigService->get(self::NOTIFIED_AT_KEY);
+        $notifiedAt = is_numeric($notifiedAt) ? (int) $notifiedAt : null;
+
+        if ($notifiedAt !== null && $now->getTimestamp() - $notifiedAt < self::RENOTIFY_AFTER_SECONDS) {
+            return;
+        }
+
+        $this->notifyAdmin();
+        // Marker unabhaengig vom Notification-Erfolg setzen: er ist die
+        // Drossel - ein dauerhaft kaputtes notification-Repo soll nicht bei
+        // jedem Lauf einen system_config-Write (Cache-Invalidierung) ausloesen.
+        $this->systemConfigService->set(self::NOTIFIED_AT_KEY, $now->getTimestamp());
+    }
+
+    /**
+     * Vorher lesen statt blind loeschen: delete() invalidiert den
+     * Config-Cache, und der gesunde Zustand ist der Normalfall bei jedem Lauf.
+     */
+    private function clearNotifiedMarker(): void
+    {
+        if ($this->systemConfigService->get(self::NOTIFIED_AT_KEY) !== null) {
+            $this->systemConfigService->delete(self::NOTIFIED_AT_KEY);
         }
     }
 
