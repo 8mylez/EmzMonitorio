@@ -142,9 +142,24 @@ Drei Quellen, im Event über `source` unterscheidbar:
 
 Robustheit: Jeder Batch wird mitsamt seiner `batchId` in der Outbox-Tabelle persistiert, **bevor** er gesendet wird. Die Zustandstabelle (zuletzt bestätigt gemeldeter Stand, Quelle der `previous*`-Werte) wird erst nach Response `204` fortgeschrieben — schlägt der Versand fehl, meldet die nächste Reconciliation die Differenz erneut, es geht kein Endzustand verloren. Transiente Fehler (`429`/`503`/Netzwerk) werden mit `Retry-After` bzw. exponentiellem Backoff und **identischer `batchId`** wiederholt (der Server ist auf `batchId` idempotent); `413` schneidet den Batch in kleinere neue Batches; `400` wird verworfen und geloggt; bei `401`/`403` pausiert der Versand für 60 Minuten und es erscheint eine Admin-Notification (Glocke) — typisch nach einer Token-Rotation in Monitorio. Nicht zustellbare Batches werden nach 72 h bzw. ab 500 offenen Batches verworfen (Warning im Log); die Reconciliation meldet offene Differenzen anschließend erneut.
 
-Der Versand läuft asynchron über die Messenger-Queue — ein laufender Worker (`bin/console messenger:consume async scheduler_shopware` bzw. das Betriebs-Setup des Shops) ist Voraussetzung dafür, dass Events und Reconciliation zeitnah verarbeitet werden.
+Der Versand läuft asynchron über die Messenger-Queue. Die Stock-Messages (Subscriber-Erfassung **und** die Reconciliation-Arbeit — der ScheduledTask dispatcht nur noch, statt selbst HTTP zu machen) laufen über Shopwares **`low_priority`-Transport**: Der Standard-Worker konsumiert Receiver in Reihenfolge, Shop-Messages wie Mails und Indexer gehen deshalb immer vor, ein zäher Monitorio-Ingest kann sie nicht verzögern. Voraussetzung ist ein laufender Worker, der `low_priority` mitkonsumiert (`bin/console messenger:consume async low_priority scheduler_shopware` bzw. das Betriebs-Setup des Shops — der Shopware-Standard seit 6.5, auch der Admin-Worker tut es). **Setups, die nur `async` konsumieren, müssen `low_priority` ergänzen.**
 
 Zwei Plugin-Tabellen gehören dazu: `emz_monitorio_stock_state` (Zustand) und `emz_monitorio_stock_outbox` (persistierte Batches). Beide werden bei der Deinstallation (ohne „Nutzerdaten behalten") entfernt. Eine Bestandshistorie hält der Shop nicht — Historie und Auswertung macht Monitorio.
+
+### Optional: dedizierter Queue-Transport
+
+Für Shops, die den Monitorio-Verkehr vollständig von den eigenen Queue-Workern isolieren wollen, bringt das Plugin den Messenger-Transport **`emz_monitorio`** mit (definiert in `src/Resources/config/packages/messenger.yaml`, per Default Doctrine auf derselben `messenger_messages`-Tabelle mit eigenem `queue_name` — **kein RabbitMQ nötig**). Der Schalter **„Dedizierten Queue-Transport verwenden"** in der Plugin-Konfiguration leitet alle Stock-Messages per `TransportNamesStamp` dorthin um; er wirkt sofort, ohne Cache-/Container-Rebuild.
+
+Aktiviert braucht der Transport **einen eigenen Worker**, z. B. als zusätzliches Supervisor-Programm:
+
+```ini
+[program:emz_monitorio_worker]
+command=php /var/www/html/bin/console messenger:consume emz_monitorio --time-limit=3600 --memory-limit=512M
+autostart=true
+autorestart=true
+```
+
+Alternativ genügt es, `emz_monitorio` an eine bestehende `messenger:consume`-Zeile anzuhängen (dann teilt er sich den Prozess wieder — die Isolation entfällt, nur die Priorisierung bleibt). Läuft kein Worker, stauen sich die Messages: ein Watchdog im Reconciliation-Task warnt dann im Log (jeder Lauf) und einmalig per Admin-Notification; zusätzlich taucht der wachsende Backlog im `/api/monitorio/message-queue`-Endpunkt auf, den Monitorio ohnehin pollt. Soll ein anderer Broker die Queue tragen, reicht die ENV-Variable `EMZ_MONITORIO_TRANSPORT_DSN` (z. B. `amqp://…`) — der Watchdog kann dann nicht in `messenger_messages` messen und hält sich still.
 
 ## Tests
 

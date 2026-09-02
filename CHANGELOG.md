@@ -5,6 +5,20 @@ Alle nennenswerten Änderungen an diesem Plugin werden in dieser Datei dokumenti
 Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 und das Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.6.0] - 2026-09-02
+
+### Geändert
+
+- Stock-Push-Messages laufen über Shopwares `low_priority`-Transport statt `async`. Der Standard-Worker (`messenger:consume async low_priority`, ebenso der Admin-Worker ab Werk) konsumiert Receiver in Reihenfolge — Shop-Messages wie Mails und Indexer gehen damit immer vor, ein zäher Monitorio-Ingest kann sie nicht mehr verzögern. **Betriebs-Hinweis:** Worker-Setups, die entgegen dem Shopware-Standard nur `messenger:consume async` fahren, müssen `low_priority` ergänzen, sonst bleiben Stock-Messages liegen.
+- Der Reconciliation-ScheduledTask führt die Arbeit (Outbox-Flush + Diff inklusive der HTTP-Calls) nicht mehr selbst im `scheduler_shopware`-Worker aus, sondern dispatcht sie als `StockReconciliationMessage` in denselben (per Konfiguration wählbaren) Transport wie den Subscriber-Pfad. Damit blockiert Monitorio-HTTP nie mehr den Task-Worker; überlappende Läufe bleiben durch Outbox-Claim-Lease und die „Diff nur bei leerer Outbox"-Bremse harmlos.
+- Log-Abruf `GET /api/_action/emz/monitorio/logs`: liest nicht mehr jede `*.log` ab Byte 0. Dateien mit `mtime` vor `since` werden ungelesen übersprungen (eine rotierte GB-Datei kostet einen stat-Call), in großen Dateien findet eine Bisektion den Fensterstart (O(log Größe) Seeks, 64-KiB-Sicherheitsrücksprung gegen lokal nicht-monotone Zeitstempel), überlange Zeilen werden bei 32 KiB gekappt statt komplett in den Speicher geladen, und Dateien werden aufsteigend nach `mtime` gelesen, damit ein Limit-Schnitt die ältesten Einträge behält (Cursor-Semantik des Pulls). Gemessen an einer realen 871-MB-`dev.log`: 22 ms / 12 MB Peak statt >120 s ohne Antwort. Contract unverändert (`loggedAt == since` bleibt inklusive, `externalKey` stabil).
+
+### Hinzugefügt
+
+- Optionaler dedizierter Messenger-Transport `emz_monitorio` (`src/Resources/config/packages/messenger.yaml`): per Default Doctrine auf derselben `messenger_messages`-Tabelle mit eigenem `queue_name` — kein zusätzlicher Broker nötig, per ENV `EMZ_MONITORIO_TRANSPORT_DSN` auf z. B. AMQP umbiegbar. Der neue Schalter `EmzMonitorio.config.useDedicatedTransport` (Default aus; unklare Werte zählen fail-closed als aus) leitet alle Stock-Messages per `TransportNamesStamp` dorthin — zur Laufzeit, ohne Container-Rebuild. Erfordert einen eigenen Worker (`messenger:consume emz_monitorio`); der ungenutzte Transport kostet nichts und erscheint lediglich mit `size: 0` in `messenger:stats` und im `/api/monitorio/message-queue`-Endpunkt.
+- Watchdog für den dedizierten Transport im Reconciliation-Task (läuft bewusst im `scheduler_shopware`-Kontext, damit er auch bei fehlendem Worker ausgeführt wird): misst das Alter der ältesten unzugestellten Message direkt in `messenger_messages`; ab 10 Minuten warnt er bei jedem Lauf im Log und einmalig per Admin-Notification. Bei einem per ENV umgebogenen Broker kann er nicht messen und hält sich still — den Backlog sieht Monitorio dann weiterhin über den Message-Queue-Endpunkt.
+- `<link rel="preconnect">` auf die Monitorio-Origin im Storefront-Head (nur bei aktivem JS Error Tracking, mit `crossorigin` passend zum anonymen Script-Load): der Browser baut DNS/TLS zur Monitorio-Instanz schon auf, bevor das Snippet angefordert wird.
+
 ## [1.4.0] - 2026-08-24
 
 ### Hinzugefügt
