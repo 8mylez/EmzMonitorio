@@ -4,7 +4,9 @@ namespace Emz\Monitorio;
 
 use Doctrine\DBAL\Connection;
 use Emz\Monitorio\Config\MonitorioBaseUrl;
+use Emz\Monitorio\Stock\DedicatedTransportWatchdog;
 use Shopware\Core\Framework\Plugin;
+use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Shopware\Core\Framework\Plugin\Context\ActivateContext;
 use Shopware\Core\Framework\Plugin\Context\DeactivateContext;
 use Shopware\Core\Framework\Plugin\Context\InstallContext;
@@ -14,6 +16,19 @@ use Shopware\Core\System\SystemConfig\SystemConfigService;
 
 class EmzMonitorio extends Plugin
 {
+    /**
+     * Laedt Resources/config/packages/*.yaml (den dedizierten Messenger-
+     * Transport `emz_monitorio`) in die Container-Konfiguration. Anders als
+     * bei den Core-Bundles passiert das fuer Plugins NICHT automatisch -
+     * buildDefaultConfig() rufen nur Framework und Profiling selbst auf.
+     */
+    public function build(ContainerBuilder $container): void
+    {
+        parent::build($container);
+
+        $this->buildDefaultConfig($container);
+    }
+
     public function install(InstallContext $installContext): void
     {
         // Do stuff such as creating a new payment method
@@ -31,6 +46,13 @@ class EmzMonitorio extends Plugin
         $connection = $this->container->get(Connection::class);
         $connection->executeStatement('DROP TABLE IF EXISTS `emz_monitorio_stock_outbox`');
         $connection->executeStatement('DROP TABLE IF EXISTS `emz_monitorio_stock_state`');
+
+        // Der Watchdog-Marker liegt bewusst ausserhalb von config.xml und wird
+        // von Shopwares Config-Cleanup deshalb nicht erfasst.
+        $connection->executeStatement(
+            'DELETE FROM `system_config` WHERE `configuration_key` = :key',
+            ['key' => DedicatedTransportWatchdog::NOTIFIED_AT_KEY]
+        );
     }
 
     public function activate(ActivateContext $activateContext): void

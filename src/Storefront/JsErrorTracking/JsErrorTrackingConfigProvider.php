@@ -44,9 +44,11 @@ final class JsErrorTrackingConfigProvider
     }
 
     /**
-     * Beide Werte sind fertig kodierte JSON-Literale und gehen im Template unescaped raus.
+     * `config` und `snippetUrl` sind fertig kodierte JSON-Literale und gehen im
+     * Template unescaped raus; `preconnectOrigin` ist der ROHE Basis-URL-Wert
+     * fuer das preconnect-Link-Attribut und wird dort normal Twig-escaped.
      *
-     * @return array{config: string, snippetUrl: string}|null null, wenn nichts ausgeliefert wird
+     * @return array{config: string, snippetUrl: string, preconnectOrigin: string}|null null, wenn nichts ausgeliefert wird
      */
     public function getLoaderData(): ?array
     {
@@ -87,9 +89,12 @@ final class JsErrorTrackingConfigProvider
             $config['buildId'] = $buildId;
         }
 
+        $baseUrl = $this->resolveBaseUrl($salesChannelId);
+
         return [
             'config' => json_encode($config, self::JSON_FLAGS),
-            'snippetUrl' => json_encode($this->resolveSnippetUrl($salesChannelId), self::JSON_FLAGS),
+            'snippetUrl' => json_encode($baseUrl . self::SNIPPET_PATH, self::JSON_FLAGS),
+            'preconnectOrigin' => $baseUrl,
         ];
     }
 
@@ -128,13 +133,11 @@ final class JsErrorTrackingConfigProvider
      * Ingest-Endpunkt selbst aus seiner Lade-URL ab, deshalb reicht der eine Wert
      * zum Umbiegen auf Staging- oder lokale Instanzen.
      */
-    private function resolveSnippetUrl(?string $salesChannelId): string
+    private function resolveBaseUrl(?string $salesChannelId): string
     {
-        $baseUrl = MonitorioBaseUrl::normalize(
+        return MonitorioBaseUrl::normalize(
             $this->systemConfigService->getString(MonitorioBaseUrl::CONFIG_KEY, $salesChannelId)
         );
-
-        return $baseUrl . self::SNIPPET_PATH;
     }
 
     /**

@@ -56,5 +56,14 @@
             <helpText>Server secret for the stock push (Authorization: Bearer) - never leaves the server and is NOT the public shop token above. Issued and rotated on the Monitorio stock setup page of the project. The push is active as soon as project ID and ingest token are set; it applies globally, not per sales channel.</helpText>
             <helpText lang="de-DE">Server-Geheimnis für den Bestands-Push (Authorization: Bearer) - verlässt den Server nie und ist NICHT das öffentliche Shop-Token oben. Wird auf der Monitorio-Setup-Seite des Projekts (Statistiken → Lagerbestand → Einrichtung) ausgestellt und rotiert. Der Push ist aktiv, sobald Projekt-ID und Ingest-Token gesetzt sind; er gilt global, nicht je Sales-Channel.</helpText>
         </input-field>
+
+        <input-field type="bool">
+            <name>useDedicatedTransport</name>
+            <label>Use dedicated message queue transport</label>
+            <label lang="de-DE">Dedizierten Queue-Transport verwenden</label>
+            <helpText>Routes stock push messages to the plugin's own transport "emz_monitorio" instead of Shopware's low_priority transport. REQUIRES an additional worker (bin/console messenger:consume emz_monitorio, e.g. as a supervisor program) - without one, messages pile up unprocessed (a watchdog warns via admin notification). After disabling, drain remaining messages once (messenger:consume emz_monitorio --limit=100) - nothing picks them up anymore. Leave disabled unless Monitorio traffic must be fully isolated from the shop's queue workers.</helpText>
+            <helpText lang="de-DE">Leitet die Stock-Push-Messages in den plugineigenen Transport "emz_monitorio" statt in Shopwares low_priority-Transport. ERFORDERT einen zusätzlichen Worker (bin/console messenger:consume emz_monitorio, z. B. als Supervisor-Programm) - ohne ihn stauen sich die Messages unverarbeitet an (ein Watchdog warnt per Admin-Benachrichtigung). Nach dem Deaktivieren verbliebene Messages einmalig abarbeiten (messenger:consume emz_monitorio --limit=100) - sie werden sonst von niemandem mehr abgeholt. Nur aktivieren, wenn der Monitorio-Verkehr vollständig von den Queue-Workern des Shops isoliert werden soll.</helpText>
+            <defaultValue>false</defaultValue>
+        </input-field>
     </card>
 </config>

@@ -14,6 +14,9 @@
         {% set emzMonitorioTracking = emz_monitorio_js_error_tracking() %}
 
         {% if emzMonitorioTracking %}
+            {# crossorigin passend zum Script-Load (crossOrigin='anonymous'):
+               nur so nutzt der Browser die vorgewaermte Verbindung wirklich. #}
+            <link rel="preconnect" href="{{ emzMonitorioTracking.preconnectOrigin }}" crossorigin>
             <script>
                 (function () {
                     try {

@@ -91,9 +91,9 @@ final class StockChangeSubscriber implements EventSubscriberInterface
             return;
         }
 
-        $this->messageBus->dispatch(new StockChangedMessage(
-            $productIds,
-            (new \DateTimeImmutable())->format(\DATE_ATOM)
-        ));
+        $this->messageBus->dispatch(
+            new StockChangedMessage($productIds, (new \DateTimeImmutable())->format(\DATE_ATOM)),
+            $this->config->transportStamps()
+        );
     }
 }
