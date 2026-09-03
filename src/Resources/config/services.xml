@@ -85,6 +85,19 @@
             <tag name="messenger.message_handler"/>
         </service>
 
+        <service id="Emz\Monitorio\Stock\Message\StockReconciliationHandler">
+            <argument type="service" id="Emz\Monitorio\Stock\StockPushService"/>
+            <tag name="messenger.message_handler"/>
+        </service>
+
+        <service id="Emz\Monitorio\Stock\DedicatedTransportWatchdog">
+            <argument type="service" id="Doctrine\DBAL\Connection"/>
+            <argument type="service" id="Emz\Monitorio\Stock\StockPushConfig"/>
+            <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
+            <argument type="service" id="monolog.logger"/>
+            <argument type="service" id="notification.repository" on-invalid="null"/>
+        </service>
+
         <service id="Emz\Monitorio\Stock\Subscriber\StockChangeSubscriber">
             <argument type="service" id="messenger.default_bus"/>
             <argument type="service" id="Emz\Monitorio\Stock\StockPushConfig"/>
@@ -100,7 +113,9 @@
         <service id="Emz\Monitorio\Stock\ScheduledTask\StockReconciliationTaskHandler">
             <argument type="service" id="scheduled_task.repository"/>
             <argument type="service" id="monolog.logger"/>
-            <argument type="service" id="Emz\Monitorio\Stock\StockPushService"/>
+            <argument type="service" id="messenger.default_bus"/>
+            <argument type="service" id="Emz\Monitorio\Stock\StockPushConfig"/>
+            <argument type="service" id="Emz\Monitorio\Stock\DedicatedTransportWatchdog"/>
             <tag name="messenger.message_handler" handles="Emz\Monitorio\Stock\ScheduledTask\StockReconciliationTask"/>
         </service>
 

@@ -131,6 +131,16 @@ final class JsErrorTrackingConfigProviderTest extends TestCase
         self::assertSame('http://localhost:8080/t/v1.js', json_decode($data['snippetUrl'], true));
     }
 
+    public function testExposesTheRawOriginForThePreconnectHint(): void
+    {
+        // Roh, nicht JSON-kodiert: der Wert geht in ein href-Attribut und wird
+        // dort von Twig escaped - ein JSON-Literal haette Anfuehrungszeichen.
+        $data = $this->provider(baseUrl: 'http://localhost:8080/')->getLoaderData();
+
+        self::assertIsArray($data);
+        self::assertSame('http://localhost:8080', $data['preconnectOrigin']);
+    }
+
     public function testConfigIsReadForTheCurrentSalesChannel(): void
     {
         $seen = [];

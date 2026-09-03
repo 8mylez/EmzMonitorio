@@ -1,0 +1,33 @@
+# Optionaler dedizierter Transport fuer den Monitorio-Stock-Push.
+#
+# Der Transport ist immer definiert, aber ungenutzt, solange der Schalter
+# `EmzMonitorio.config.useDedicatedTransport` aus ist (das Routing der
+# Stock-Messages laeuft dann ueber ihr LowPriorityMessageInterface). Aktiviert
+# schreibt ein TransportNamesStamp die Messages hierher - dann muss ein Worker
+# den Transport konsumieren: `bin/console messenger:consume emz_monitorio`
+# (eigenes Supervisor-Programm) oder an eine bestehende consume-Zeile
+# anhaengen. Ein definierter Transport ohne Messages kostet nichts; er
+# erscheint lediglich mit size 0 in messenger:stats und im
+# /api/monitorio/message-queue-Endpunkt.
+#
+# Default-DSN: Doctrine auf derselben messenger_messages-Tabelle mit eigenem
+# queue_name - kein zusaetzlicher Broker noetig. Fuer RabbitMQ o. ae. nur die
+# ENV-Variable setzen, z. B. EMZ_MONITORIO_TRANSPORT_DSN=amqp://...
+#
+# Der Transport-Schluessel muss mit
+# \Emz\Monitorio\Stock\StockPushConfig::DEDICATED_TRANSPORT_NAME
+# uebereinstimmen.
+parameters:
+    env(EMZ_MONITORIO_TRANSPORT_DSN): 'doctrine://default?auto_setup=false&queue_name=emz_monitorio'
+
+framework:
+    messenger:
+        transports:
+            emz_monitorio:
+                dsn: "%env(EMZ_MONITORIO_TRANSPORT_DSN)%"
+                serializer: messenger.transport.symfony_serializer
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+                    max_delay: 0
