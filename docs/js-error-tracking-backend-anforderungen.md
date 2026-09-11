@@ -36,7 +36,7 @@ End-to-end gegen eine lokale Instanz verifiziert (Shopware 6.7.8.2, Projekt 1):
 ```json
 {
   "projectId": 1,
-  "shopToken": "55e7169d9cc49a4a340a3bb9c0ca2afd",
+  "shopToken": "<shop-token>",
   "salesChannelId": "019d35ac2abd70519c62ece1c7be0b69",
   "context": "storefront",
   "buildId": "42db61d5c4d99e92176f9a234541db08"

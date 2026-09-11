@@ -24,6 +24,7 @@ final class JsErrorTrackingConfigProviderTest extends TestCase
     private const SALES_CHANNEL_ID = '0189c6b1f1e57e1a9b2d4c3f5a6e7d80';
     private const THEME_ID = '0189c6b2aa117d3e8f4b1c9e2d5a6f70';
     private const BUILD_ID = 'cb1116e70d578ba33c978843afbdd646';
+    private const SHOP_TOKEN = 'test-shop-token';
 
     public function testReturnsNullWhenDisabled(): void
     {
@@ -72,7 +73,7 @@ final class JsErrorTrackingConfigProviderTest extends TestCase
         self::assertSame(
             [
                 'projectId' => 1,
-                'shopToken' => '55e7169d9cc49a4a340a3bb9c0ca2afd',
+                'shopToken' => self::SHOP_TOKEN,
                 'salesChannelId' => self::SALES_CHANNEL_ID,
                 'context' => PageContext::STOREFRONT,
                 'buildId' => self::BUILD_ID,
@@ -276,7 +277,7 @@ final class JsErrorTrackingConfigProviderTest extends TestCase
     private function provider(
         mixed $enabled = true,
         int $projectId = 1,
-        string $shopToken = '55e7169d9cc49a4a340a3bb9c0ca2afd',
+        string $shopToken = self::SHOP_TOKEN,
         string $baseUrl = '',
         string $route = 'frontend.home.page',
         ?string $themeId = self::THEME_ID,
@@ -302,7 +303,7 @@ final class JsErrorTrackingConfigProviderTest extends TestCase
     private function keyedConfig(
         mixed $enabled = true,
         int $projectId = 1,
-        string $shopToken = '55e7169d9cc49a4a340a3bb9c0ca2afd',
+        string $shopToken = self::SHOP_TOKEN,
         string $baseUrl = '',
         array &$seen = [],
     ): SystemConfigService {
