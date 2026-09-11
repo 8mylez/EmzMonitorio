@@ -1,0 +1,5 @@
+# Nicht im Dist-Archiv, das Composer von Packagist/GitHub laedt (git archive)
+/.gitattributes export-ignore
+/docs export-ignore
+/phpunit.xml export-ignore
+/tests export-ignore
