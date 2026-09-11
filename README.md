@@ -16,11 +16,37 @@ Companion-Plugin für Monitorio. Stellt Read-only-Monitoring-Endpunkte über die
 
 ## Installation
 
+### Per Composer
+
+```bash
+composer require emz/monitorio
+bin/console plugin:refresh
+bin/console plugin:install --activate EmzMonitorio
+bin/console cache:clear
+```
+
+Composer legt das Plugin unter `vendor/emz/monitorio` ab. Liegt zusätzlich ein Ordner `custom/plugins/EmzMonitorio` im Shop, installiert Composer diese lokale Kopie statt des Pakets von Packagist: Die Standard-`composer.json` von Shopware bindet `custom/plugins/*` als Path-Repository ein.
+
+### Als ZIP
+
+Das Plugin nach `custom/plugins/EmzMonitorio` entpacken oder das ZIP im Admin unter **Erweiterungen > Meine Erweiterungen** hochladen, dann:
+
 ```bash
 bin/console plugin:refresh
 bin/console plugin:install --activate EmzMonitorio
 bin/console cache:clear
 ```
+
+## Update
+
+```bash
+composer update emz/monitorio   # nur bei Installation per Composer
+bin/console plugin:refresh
+bin/console plugin:update EmzMonitorio
+bin/console cache:clear
+```
+
+Per Composer installiert kommt neuer Code nur über `composer update`, nicht über den Extension-Manager im Admin. Bei der ZIP-Installation ersetzt das neue ZIP den Ordner unter `custom/plugins`. `plugin:update` führt in beiden Fällen die Migrationen der neuen Version aus.
 
 ## Konfiguration
 
@@ -112,7 +138,7 @@ Eine Änderung der Einstellung greift nach `bin/console cache:clear`.
 
 ## Lagerbestand-Push (Stock-Monitoring)
 
-Der Shop pusht Bestands-**Zustände** (Bestand vorher/nachher je Leaf-Produkt, also je Variante bzw. variantenlosem Produkt) als Batches an `POST {monitorioBaseUrl}/ingest/stock/{projectId}`. Jede Interpretation — Transition-Erkennung (back in stock / out of stock), Abverkauf-Filter, Alarme, Reports — passiert serverseitig in Monitorio. Es werden immer **alle** Leaf-Produkte gemeldet, auch inaktive und Abverkauf-Produkte (`isCloseout`); gefiltert wird in Monitorio. Der API-Contract ist in [docs/stock_companion_push.md](docs/stock_companion_push.md) festgeschrieben, die Umsetzungsentscheidungen in [docs/stock_push_konzept.md](docs/stock_push_konzept.md).
+Der Shop pusht Bestands-**Zustände** (Bestand vorher/nachher je Leaf-Produkt, also je Variante bzw. variantenlosem Produkt) als Batches an `POST {monitorioBaseUrl}/ingest/stock/{projectId}`. Jede Interpretation — Transition-Erkennung (back in stock / out of stock), Abverkauf-Filter, Alarme, Reports — passiert serverseitig in Monitorio. Es werden immer **alle** Leaf-Produkte gemeldet, auch inaktive und Abverkauf-Produkte (`isCloseout`); gefiltert wird in Monitorio.
 
 ### Einrichtung
 
@@ -177,6 +203,8 @@ php phpunit.phar \
 ```
 
 In Umgebungen mit vollständigen dev-Dependencies funktioniert weiterhin `tests/TestBootstrap.php` (Shopware `TestBootstrapper`) über die `phpunit.xml` des Plugins.
+
+Tests und `phpunit.xml` sind nicht Teil des Composer-Pakets (`export-ignore` in `.gitattributes`) und laufen aus einem Git-Checkout unter `custom/plugins`.
 
 ## API-Endpunkte
 
@@ -305,4 +333,4 @@ Ein leeres Array `[]` ist ein valider Erfolgsfall (keine zählbaren Transports k
 
 ## Lizenz
 
-MIT
+MIT, siehe [LICENSE](LICENSE).

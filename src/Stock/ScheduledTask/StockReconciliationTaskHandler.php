@@ -12,7 +12,7 @@ use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
- * Registrierung in services.xml mit explizitem `handles`-Tag-Attribut: der
+ * Registrierung in services.php mit explizitem `handles`-Tag-Attribut: der
  * generische __invoke(ScheduledTask)-Typehint der Basisklasse wuerde sonst
  * auf alle ScheduledTask-Messages matchen.
  *
