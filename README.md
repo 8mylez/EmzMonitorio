@@ -138,7 +138,7 @@ Eine Änderung der Einstellung greift nach `bin/console cache:clear`.
 
 ## Lagerbestand-Push (Stock-Monitoring)
 
-Der Shop pusht Bestands-**Zustände** (Bestand vorher/nachher je Leaf-Produkt, also je Variante bzw. variantenlosem Produkt) als Batches an `POST {monitorioBaseUrl}/ingest/stock/{projectId}`. Jede Interpretation — Transition-Erkennung (back in stock / out of stock), Abverkauf-Filter, Alarme, Reports — passiert serverseitig in Monitorio. Es werden immer **alle** Leaf-Produkte gemeldet, auch inaktive und Abverkauf-Produkte (`isCloseout`); gefiltert wird in Monitorio. Der API-Contract ist in [docs/stock_companion_push.md](docs/stock_companion_push.md) festgeschrieben, die Umsetzungsentscheidungen in [docs/stock_push_konzept.md](docs/stock_push_konzept.md).
+Der Shop pusht Bestands-**Zustände** (Bestand vorher/nachher je Leaf-Produkt, also je Variante bzw. variantenlosem Produkt) als Batches an `POST {monitorioBaseUrl}/ingest/stock/{projectId}`. Jede Interpretation — Transition-Erkennung (back in stock / out of stock), Abverkauf-Filter, Alarme, Reports — passiert serverseitig in Monitorio. Es werden immer **alle** Leaf-Produkte gemeldet, auch inaktive und Abverkauf-Produkte (`isCloseout`); gefiltert wird in Monitorio.
 
 ### Einrichtung
 

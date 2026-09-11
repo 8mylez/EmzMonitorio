@@ -6,7 +6,7 @@ use Doctrine\DBAL\Connection;
 use Shopware\Core\Framework\Migration\MigrationStep;
 
 /**
- * Tabellen fuer den Stock-Push (docs/stock_push_konzept.md, Abschnitt 3).
+ * Tabellen fuer den Stock-Push.
  *
  * Beide sind reine Infrastruktur-Tabellen ohne DAL-Entity: kein Admin-CRUD,
  * keine Associations, keine API-Exposition - Zugriff ausschliesslich per DBAL.

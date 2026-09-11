@@ -46,7 +46,7 @@
             <tag name="twig.extension"/>
         </service>
 
-        <!-- Stock-Push (docs/stock_push_konzept.md) -->
+        <!-- Stock-Push -->
 
         <service id="Emz\Monitorio\Stock\StockPushConfig">
             <argument type="service" id="Shopware\Core\System\SystemConfig\SystemConfigService"/>
