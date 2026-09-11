@@ -16,11 +16,37 @@ Companion-Plugin für Monitorio. Stellt Read-only-Monitoring-Endpunkte über die
 
 ## Installation
 
+### Per Composer
+
+```bash
+composer require emz/monitorio
+bin/console plugin:refresh
+bin/console plugin:install --activate EmzMonitorio
+bin/console cache:clear
+```
+
+Composer legt das Plugin unter `vendor/emz/monitorio` ab. Liegt zusätzlich ein Ordner `custom/plugins/EmzMonitorio` im Shop, installiert Composer diese lokale Kopie statt des Pakets von Packagist: Die Standard-`composer.json` von Shopware bindet `custom/plugins/*` als Path-Repository ein.
+
+### Als ZIP
+
+Das Plugin nach `custom/plugins/EmzMonitorio` entpacken oder das ZIP im Admin unter **Erweiterungen > Meine Erweiterungen** hochladen, dann:
+
 ```bash
 bin/console plugin:refresh
 bin/console plugin:install --activate EmzMonitorio
 bin/console cache:clear
 ```
+
+## Update
+
+```bash
+composer update emz/monitorio   # nur bei Installation per Composer
+bin/console plugin:refresh
+bin/console plugin:update EmzMonitorio
+bin/console cache:clear
+```
+
+Per Composer installiert kommt neuer Code nur über `composer update`, nicht über den Extension-Manager im Admin. Bei der ZIP-Installation ersetzt das neue ZIP den Ordner unter `custom/plugins`. `plugin:update` führt in beiden Fällen die Migrationen der neuen Version aus.
 
 ## Konfiguration
 
@@ -178,6 +204,8 @@ php phpunit.phar \
 
 In Umgebungen mit vollständigen dev-Dependencies funktioniert weiterhin `tests/TestBootstrap.php` (Shopware `TestBootstrapper`) über die `phpunit.xml` des Plugins.
 
+Tests und `phpunit.xml` sind nicht Teil des Composer-Pakets (`export-ignore` in `.gitattributes`) und laufen aus einem Git-Checkout unter `custom/plugins`.
+
 ## API-Endpunkte
 
 Alle Endpunkte laufen im Admin-API-Scope (`_routeScope: api`) und werden über Shopwares Admin-OAuth abgesichert. Der Aufruf erfolgt mit dem Bearer-Token einer Shop-Integration.
@@ -305,4 +333,4 @@ Ein leeres Array `[]` ist ein valider Erfolgsfall (keine zählbaren Transports k
 
 ## Lizenz
 
-MIT
+MIT, siehe [LICENSE](LICENSE).
