@@ -3,8 +3,10 @@
 namespace Emz\Monitorio;
 
 use Doctrine\DBAL\Connection;
+use Emz\Monitorio\Acl\MonitorioRoleInstaller;
 use Emz\Monitorio\Config\MonitorioBaseUrl;
 use Emz\Monitorio\Stock\DedicatedTransportWatchdog;
+use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\Plugin;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Shopware\Core\Framework\Plugin\Context\ActivateContext;
@@ -31,7 +33,7 @@ class EmzMonitorio extends Plugin
 
     public function install(InstallContext $installContext): void
     {
-        // Do stuff such as creating a new payment method
+        $this->createRoleInstaller()->ensureRole($installContext->getContext());
     }
 
     public function uninstall(UninstallContext $uninstallContext): void
@@ -41,6 +43,8 @@ class EmzMonitorio extends Plugin
         if ($uninstallContext->keepUserData()) {
             return;
         }
+
+        $this->createRoleInstaller()->removeRole($uninstallContext->getContext());
 
         /** @var Connection $connection */
         $connection = $this->container->get(Connection::class);
@@ -74,6 +78,10 @@ class EmzMonitorio extends Plugin
         if (\version_compare($updateContext->getCurrentPluginVersion(), '1.3.0', '<')) {
             $this->migrateLegacySnippetUrl();
         }
+
+        // Bestandsinstallationen bekommen die Rolle beim Update; neue Rechte
+        // spaeterer Versionen werden hier nachgezogen.
+        $this->createRoleInstaller()->ensureRole($updateContext->getContext());
     }
 
     public function postInstall(InstallContext $installContext): void
@@ -82,6 +90,14 @@ class EmzMonitorio extends Plugin
 
     public function postUpdate(UpdateContext $updateContext): void
     {
+    }
+
+    private function createRoleInstaller(): MonitorioRoleInstaller
+    {
+        /** @var EntityRepository $aclRoleRepository */
+        $aclRoleRepository = $this->container->get('acl_role.repository');
+
+        return new MonitorioRoleInstaller($aclRoleRepository);
     }
 
     /**

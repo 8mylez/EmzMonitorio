@@ -48,6 +48,18 @@ bin/console cache:clear
 
 Per Composer installiert kommt neuer Code nur über `composer update`, nicht über den Extension-Manager im Admin. Bei der ZIP-Installation ersetzt das neue ZIP den Ordner unter `custom/plugins`. `plugin:update` führt in beiden Fällen die Migrationen der neuen Version aus.
 
+## Integration und Rolle
+
+Monitorio ruft die Admin-API mit einer Shop-Integration ab (OAuth `client_credentials`). Das Plugin legt dafür bei der Installation die ACL-Rolle **Monitorio** an; die Integration selbst wird weiterhin von Hand erstellt:
+
+1. Im Admin unter **Einstellungen > System > Integrationen** eine Integration anlegen.
+2. **Administrator** deaktiviert lassen und die Rolle **Monitorio** zuweisen.
+3. Access-Key und Secret im Monitorio-Projekt hinterlegen.
+
+Die Rolle enthält die Rechte für alle Abfragen, die Monitorio absetzt (Liste: `MonitorioRoleInstaller::PRIVILEGES`). Bis auf eines sind es reine Leserechte: `system.plugin_maintain` ist nötig, weil Shopware `/api/_action/extension/installed` (Erkennung des Security-Plugins) nur darüber freigibt — dasselbe Recht erlaubt allerdings auch das Installieren und Deinstallieren von Erweiterungen. Wer das nicht vergeben will, entfernt es aus der Rolle und verzichtet auf diese Auswertung; ein Plugin-Update trägt es dann aber wieder nach.
+
+Bei jedem Plugin-Update werden fehlende Rechte ergänzt, zusätzlich vergebene bleiben erhalten. Die Deinstallation ohne „Daten behalten" löscht die Rolle; eine Integration, die nur diese Rolle hatte, hat danach keinen Zugriff mehr.
+
 ## Konfiguration
 
 Die Einstellungen stehen im Admin unter **Erweiterungen > Meine Erweiterungen > Monitorio Event Ingest > Konfiguration** und lassen sich je Sales-Channel überschreiben.
@@ -208,7 +220,7 @@ Tests und `phpunit.xml` sind nicht Teil des Composer-Pakets (`export-ignore` in 
 
 ## API-Endpunkte
 
-Alle Endpunkte laufen im Admin-API-Scope (`_routeScope: api`) und werden über Shopwares Admin-OAuth abgesichert. Der Aufruf erfolgt mit dem Bearer-Token einer Shop-Integration.
+Alle Endpunkte laufen im Admin-API-Scope (`_routeScope: api`) und werden über Shopwares Admin-OAuth abgesichert. Der Aufruf erfolgt mit dem Bearer-Token einer Shop-Integration (siehe [Integration und Rolle](#integration-und-rolle)); die Endpunkte des Plugins selbst verlangen kein eigenes Privileg.
 
 ### GET /api/monitorio/free-disk-space
 

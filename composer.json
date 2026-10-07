@@ -2,7 +2,7 @@
     "name": "emz/monitorio",
     "description": "Monitorio companion plugin for Shopware 6: read-only monitoring endpoints polled via the Admin API (shop logs, log volume, message queue backlog, disk space), JS error tracking loader for the storefront, and stock event push to the Monitorio ingest.",
     "type": "shopware-platform-plugin",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "license": "MIT",
     "authors": [
         {

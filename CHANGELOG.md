@@ -5,6 +5,12 @@ Alle nennenswerten Änderungen an diesem Plugin werden in dieser Datei dokumenti
 Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 und das Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.7.0] - 2026-10-07
+
+### Hinzugefügt
+
+- ACL-Rolle `Monitorio`: wird bei der Installation angelegt und bei jedem Plugin-Update um fehlende Rechte ergänzt (Bestandsinstallationen bekommen sie also mit dem Update auf 1.7.0). Sie enthält genau die Rechte, die Monitorio für seine Admin-API-Abfragen braucht — Leserechte auf Bestellungen, Produkte, Kategorien, Sales-Channels, Scheduled Tasks und Erweiterungen sowie `system.plugin_maintain` für `/api/_action/extension/installed`. Damit muss die Monitorio-Integration kein Administrator mehr sein. Das Plugin legt keine Integration an und weist die Rolle keiner bestehenden zu; im Admin zusätzlich vergebene Rechte bleiben bei Updates erhalten. Bei der Deinstallation ohne „Daten behalten" wird die Rolle gelöscht.
+
 ## [1.6.0] - 2026-09-02
 
 ### Geändert
