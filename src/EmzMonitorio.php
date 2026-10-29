@@ -8,7 +8,12 @@ use Emz\Monitorio\Config\MonitorioBaseUrl;
 use Emz\Monitorio\Stock\DedicatedTransportWatchdog;
 use Shopware\Core\Framework\DataAbstractionLayer\EntityRepository;
 use Shopware\Core\Framework\Plugin;
+use Symfony\Component\Config\FileLocator;
+use Symfony\Component\Config\Loader\DelegatingLoader;
+use Symfony\Component\Config\Loader\LoaderResolver;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Loader\GlobFileLoader;
+use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Shopware\Core\Framework\Plugin\Context\ActivateContext;
 use Shopware\Core\Framework\Plugin\Context\DeactivateContext;
 use Shopware\Core\Framework\Plugin\Context\InstallContext;
@@ -21,14 +26,22 @@ class EmzMonitorio extends Plugin
     /**
      * Laedt Resources/config/packages/*.yaml (den dedizierten Messenger-
      * Transport `emz_monitorio`) in die Container-Konfiguration. Anders als
-     * bei den Core-Bundles passiert das fuer Plugins NICHT automatisch -
-     * buildDefaultConfig() rufen nur Framework und Profiling selbst auf.
+     * bei den Core-Bundles passiert das fuer Plugins NICHT automatisch.
+     * Bewusst nicht ueber Bundle::buildDefaultConfig() - die gibt es erst ab
+     * Shopware 6.6, das Plugin unterstuetzt aber 6.5.7+.
      */
     public function build(ContainerBuilder $container): void
     {
         parent::build($container);
 
-        $this->buildDefaultConfig($container);
+        $configDir = $this->getPath() . '/Resources/config';
+        $locator = new FileLocator($configDir);
+        $loader = new DelegatingLoader(new LoaderResolver([
+            new YamlFileLoader($container, $locator),
+            new GlobFileLoader($container, $locator),
+        ]));
+
+        $loader->load($configDir . '/{packages}/*.yaml', 'glob');
     }
 
     public function install(InstallContext $installContext): void
