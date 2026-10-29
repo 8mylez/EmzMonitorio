@@ -5,6 +5,12 @@ Alle nennenswerten Änderungen an diesem Plugin werden in dieser Datei dokumenti
 Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 und das Projekt folgt [Semantic Versioning](https://semver.org/lang/de/).
 
+## [1.7.1] - 2026-10-29
+
+### Behoben
+
+- Fatal Error auf Shopware 6.5 (`Call to undefined method EmzMonitorio::buildDefaultConfig()`) beim Container-Build, d. h. bei `plugin:install` und jedem Kernel-Boot mit aktivem Plugin. `Bundle::buildDefaultConfig()` existiert erst ab Shopware 6.6; das Plugin lädt `Resources/config/packages/*.yaml` jetzt selbst. Betroffen waren 1.6.0 und 1.7.0.
+
 ## [1.7.0] - 2026-10-07
 
 ### Hinzugefügt
